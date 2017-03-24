@@ -159,3 +159,28 @@ boot.py file):
 import machine
 antenna = machine.Pin(16, machine.Pin.OUT, value=0)
 ```
+
+Troubleshooting
+----------------------------------------
+
+### Continuous reboots after programming
+
+If you're seeing something like this after deploying:
+
+    rst:0x10 (RTCWDT_RTC_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+    configsip: 0, SPIWP:0x00
+    clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+    mode:QIO, clock div:2
+    load:0x3fff0008,len:8
+    load:0xffffffff,len:-1
+
+It's likely that your module (e.g. ESP-WROOM-32) only supports DIO flash mode.  In the Makefile, change:
+
+    FLASH_MODE=dio
+
+Then rebuild:
+
+    make clean # Very important
+    make
+    make erase
+    make deploy
