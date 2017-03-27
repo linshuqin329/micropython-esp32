@@ -143,6 +143,7 @@ SRC_C = \
 	machine_hw_spi.c \
 	machine_wdt.c \
 	mpthreadport.c \
+	machine_rtc.c \
 	$(SRC_MOD)
 
 EXTMOD_SRC_C = $(addprefix extmod/,\
