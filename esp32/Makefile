@@ -129,6 +129,7 @@ SRC_C = \
 	modesp.c \
 	espneopixel.c \
 	machine_hw_spi.c \
+	machine_spi_test.c \
 	$(SRC_MOD)
 
 STM_SRC_C = $(addprefix stmhal/,\

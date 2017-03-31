@@ -43,11 +43,16 @@
 #define MICROPY_PY_MACHINE_SPI_LSB (1)
 #endif
 
+#if 1
 #define MACHINE_HW_SPI_DEBUG_PRINTF(args...) printf(args)
+#else
+#define MACHINE_HW_SPI_DEBUG_PRINTF(args...)
+#endif
 
-STATIC void machine_hw_spi_deinit_internal(spi_host_device_t host, spi_device_handle_t* spi) {
+STATIC void machine_hw_spi_deinit_internal(spi_host_device_t host, spi_device_handle_t spi) {
 
-    switch(spi_bus_remove_device(*spi)) {
+    MACHINE_HW_SPI_DEBUG_PRINTF("machine_hw_spi_deinit_internal(host = %d, spi = %p)\n", host, spi);
+    switch(spi_bus_remove_device(spi)) {
         case ESP_ERR_INVALID_ARG:
             mp_raise_msg(&mp_type_OSError, "Invalid configuration");
             return;
@@ -72,7 +77,7 @@ STATIC void machine_hw_spi_deinit(mp_obj_base_t *self_in) {
     machine_hw_spi_obj_t *self = (machine_hw_spi_obj_t*)self_in;
     if (self->state == MACHINE_HW_SPI_STATE_INIT) {
         self->state = MACHINE_HW_SPI_STATE_DEINIT;
-        machine_hw_spi_deinit_internal(self->host, &self->spi);
+        machine_hw_spi_deinit_internal(self->host, self->spi);
     }
 }
 
@@ -107,7 +112,9 @@ STATIC void machine_hw_spi_transfer(mp_obj_base_t *self_in, size_t len, const ui
         transaction.rx_buffer = dest;
     }
 
+    MACHINE_HW_SPI_DEBUG_PRINTF("Just before spi_device_transmit()\n");
     spi_device_transmit(self->spi, &transaction);
+    MACHINE_HW_SPI_DEBUG_PRINTF("Just after spi_device_transmit()\n");
 
     if (shortMsg && dest != NULL) {
         memcpy(dest, &transaction.rx_data, len);
@@ -119,11 +126,13 @@ STATIC void machine_hw_spi_transfer(mp_obj_base_t *self_in, size_t len, const ui
 
 STATIC void machine_hw_spi_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     machine_hw_spi_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    mp_printf(print, "SPI(id=%u, baudrate=%u, polarity=%u, phase=%u, bits=%u, firstbit=%u, sck=%d, mosi=%d, miso=%d)",
+    mp_printf(print, "SPI(id=%u, baudrate=%u, polarity=%u, phase=%u, bits=%u, firstbit=%u, sck=%d, mosi=%d, miso=%d%s)",
             self->host, self->baudrate, self->polarity,
             self->phase, self->bits, self->firstbit,
-            self->sck, self->mosi, self->miso );
+            self->sck, self->mosi, self->miso,
+            self->state != MACHINE_HW_SPI_STATE_INIT ? ", DEINIT" : "");
 }
+
 
 STATIC void machine_hw_spi_init_internal(
         machine_hw_spi_obj_t    *self,
@@ -136,7 +145,10 @@ STATIC void machine_hw_spi_init_internal(
         int8_t                  sck,
         int8_t                  mosi,
         int8_t                  miso) {
-    bool changed = false;
+
+    // if not initialized, then calling this (init) is a change, by definiton
+    bool changed = self->state != MACHINE_HW_SPI_STATE_INIT;
+
     MACHINE_HW_SPI_DEBUG_PRINTF("machine_hw_spi_init_internal(self, host = %d, baudrate = %d, polarity = %d, phase = %d, bits = %d, firstbit = %d, sck = %d, mosi = %d, miso = %d)\n", host, baudrate, polarity, phase, bits, firstbit, sck, mosi, miso);
 
 
@@ -193,40 +205,41 @@ STATIC void machine_hw_spi_init_internal(
         mp_raise_ValueError("SPI ID must be either HSPI(1) or VSPI(2)");
     }
 
-    if (changed) {
-        if (self->state == MACHINE_HW_SPI_STATE_INIT) {
-            MACHINE_HW_SPI_DEBUG_PRINTF("machine_hw_spi_init_internal calling deinit()\n");
-            self->state = MACHINE_HW_SPI_STATE_DEINIT;
-            machine_hw_spi_deinit_internal(old_host, &self->spi);
-        }
-    } else {
-        return; // no changes
+    if (!changed && self->state == MACHINE_HW_SPI_STATE_INIT) {
+        return;
+    }
+
+    if (self->state == MACHINE_HW_SPI_STATE_INIT) {
+        MACHINE_HW_SPI_DEBUG_PRINTF("machine_hw_spi_init_internal calling deinit()\n");
+        self->state = MACHINE_HW_SPI_STATE_DEINIT;
+        machine_hw_spi_deinit_internal(old_host, self->spi);
     }
 
     MACHINE_HW_SPI_DEBUG_PRINTF("machine_hw_spi_init_internal new values: host = %d, baudrate = %d, polarity = %d, phase = %d, bits = %d, firstbit = %d, sck = %d, mosi = %d, miso = %d)\n", self->host, self->baudrate, self->polarity, self->phase, self->bits, self->firstbit, self->sck, self->mosi, self->miso);
 
+    spi_bus_config_t bus_config;
+    spi_device_interface_config_t device_config;
 
-    spi_bus_config_t buscfg = {
-        .miso_io_num = self->miso,
-        .mosi_io_num = self->mosi,
-        .sclk_io_num = self->sck,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1
-    };
+    memset(&bus_config, 0, sizeof(spi_bus_config_t));
+    memset(&device_config, 0, sizeof(spi_device_interface_config_t));
 
-    spi_device_interface_config_t devcfg = {
-        .clock_speed_hz = self->baudrate,
-        .mode = self->phase | (self->polarity << 1),
-        .spics_io_num = -1, // No CS pin
-        .queue_size = 1,
-        .flags = self->firstbit == MICROPY_PY_MACHINE_SPI_LSB ? SPI_DEVICE_TXBIT_LSBFIRST | SPI_DEVICE_RXBIT_LSBFIRST : 0,
-        .pre_cb = NULL
-    };
+    bus_config.miso_io_num = self->miso;
+    bus_config.mosi_io_num = self->mosi;
+    bus_config.sclk_io_num = self->sck;
+    bus_config.quadwp_io_num = -1;
+    bus_config.quadhd_io_num = -1;
+
+    device_config.clock_speed_hz = self->baudrate;
+    device_config.mode = self->phase | (self->polarity << 1);
+    device_config.spics_io_num = -1;
+    device_config.queue_size = 1;
+    device_config.flags = self->firstbit == MICROPY_PY_MACHINE_SPI_LSB ? SPI_DEVICE_TXBIT_LSBFIRST | SPI_DEVICE_RXBIT_LSBFIRST : 0;
+    device_config.pre_cb = NULL;
 
     //Initialize the SPI bus
     // FIXME: Does the DMA matter? There are two
 
-    ret = spi_bus_initialize(self->host, &buscfg, 1);
+    ret = spi_bus_initialize(self->host, &bus_config, self->host);
     switch (ret) { 
         case ESP_ERR_INVALID_ARG:
             mp_raise_msg(&mp_type_OSError, "Invalid configuration");
@@ -237,7 +250,7 @@ STATIC void machine_hw_spi_init_internal(
             return;
     }
 
-    ret = spi_bus_add_device(self->host, &devcfg, &self->spi);
+    ret = spi_bus_add_device(self->host, &device_config, &self->spi);
     switch (ret) { 
         case ESP_ERR_INVALID_ARG:
             mp_raise_msg(&mp_type_OSError, "Invalid configuration");
@@ -274,8 +287,6 @@ STATIC void machine_hw_spi_init(mp_obj_base_t *self_in, size_t n_args, const mp_
         { MP_QSTR_miso,     MP_ARG_KW_ONLY | MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
     };
 
-
-
     mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
     mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed_args),
             allowed_args, args);
@@ -308,7 +319,7 @@ STATIC void machine_hw_spi_init(mp_obj_base_t *self_in, size_t n_args, const mp_
     MACHINE_HW_SPI_DEBUG_PRINTF ("before calling internal\n");
     machine_hw_spi_init_internal( self, args[ARG_id].u_int, args[ARG_baudrate].u_int,
             args[ARG_polarity].u_int, args[ARG_phase].u_int, args[ARG_bits].u_int,
-            args[ARG_firstbit].u_int, sck, miso, mosi);
+            args[ARG_firstbit].u_int, sck, mosi, miso);
 }
 
 mp_obj_t machine_hw_spi_make_new(const mp_obj_type_t *type, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
@@ -339,8 +350,8 @@ mp_obj_t machine_hw_spi_make_new(const mp_obj_type_t *type, size_t n_args, size_
             args[ARG_bits].u_int,
             args[ARG_firstbit].u_int,
             args[ARG_sck].u_obj == MP_OBJ_NULL ? -1 : machine_pin_get_id(args[ARG_sck].u_obj),
-            args[ARG_miso].u_obj == MP_OBJ_NULL ? -1 : machine_pin_get_id(args[ARG_miso].u_obj),
-            args[ARG_mosi].u_obj == MP_OBJ_NULL ? -1 : machine_pin_get_id(args[ARG_mosi].u_obj));
+            args[ARG_mosi].u_obj == MP_OBJ_NULL ? -1 : machine_pin_get_id(args[ARG_mosi].u_obj),
+            args[ARG_miso].u_obj == MP_OBJ_NULL ? -1 : machine_pin_get_id(args[ARG_miso].u_obj));
 
     return MP_OBJ_FROM_PTR(self);
 }
