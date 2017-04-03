@@ -14,7 +14,7 @@ STATIC mp_obj_t spi_test(void) {
     spi_bus_config_t                bus_config;
     spi_device_interface_config_t   device_config;
     spi_device_handle_t             spi;
-    spi_host_device_t               host = 1;
+    spi_host_device_t               host = 2;
     int                             dma = 1;
 
     memset(&bus_config, 0, sizeof(spi_bus_config_t));
@@ -51,8 +51,14 @@ STATIC mp_obj_t spi_test(void) {
     assert(spi_bus_free(host) == ESP_OK);
 
     // change things up!
+#if 0
     bus_config.mosi_io_num = 4;
-    host = 2;
+    printf("changing mosi to %d\n", bus_config.mosi_io_num);
+#endif
+#if 1
+    host = 1;
+    printf("changing host to %d\n", host);
+#endif
     
     assert(spi_bus_initialize(host, &bus_config, dma) == ESP_OK);
     assert(spi_bus_add_device(host, &device_config, &spi) == ESP_OK);
@@ -60,6 +66,10 @@ STATIC mp_obj_t spi_test(void) {
     printf("before second xmit\n");
     assert(spi_device_transmit(spi, &transaction) == ESP_OK);
     printf("after second xmit\n");
+
+    assert(spi_bus_remove_device(spi) == ESP_OK);
+    assert(spi_bus_free(host) == ESP_OK);
+
 
     return mp_const_none;
 }
