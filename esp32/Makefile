@@ -130,6 +130,7 @@ SRC_C = \
 	espneopixel.c \
 	machine_hw_spi.c \
 	mpthreadport.c \
+	modmcpwm.c \
 	$(SRC_MOD)
 
 STM_SRC_C = $(addprefix stmhal/,\
