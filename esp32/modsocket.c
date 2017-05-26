@@ -237,6 +237,8 @@ void _socket_settimeout(socket_obj_t *sock, uint64_t timeout_ms) {
         .tv_sec = 0,
         .tv_usec = timeout_ms ? SOCKET_POLL_US : 0
     };
+
+    printf("timeout_ms: %llu, tv_usec: %ld, retries: %u\n", timeout_ms, timeout.tv_usec, sock->retries);
     lwip_setsockopt_r(sock->fd, SOL_SOCKET, SO_SNDTIMEO, (const void *)&timeout, sizeof(timeout));
     lwip_setsockopt_r(sock->fd, SOL_SOCKET, SO_RCVTIMEO, (const void *)&timeout, sizeof(timeout));
     lwip_fcntl_r(sock->fd, F_SETFL, timeout_ms ? 0 : O_NONBLOCK);
@@ -380,8 +382,11 @@ STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(socket_makefile_obj, 1, 3, socket_mak
 STATIC mp_uint_t socket_stream_read(mp_obj_t self_in, void *buf, mp_uint_t size, int *errcode) {
     socket_obj_t *sock = self_in;
 
+    
     // XXX Would be nicer to use RTC to handle timeouts
-    for (int i=0; i<=sock->retries; i++) {
+    int i;
+    for (i=0; i<=sock->retries; i++) {
+        printf("read i: %d\n", i);
         MP_THREAD_GIL_EXIT();
         int x = lwip_recvfrom_r(sock->fd, buf, size, 0, NULL, NULL);
         MP_THREAD_GIL_ENTER();
@@ -395,6 +400,7 @@ STATIC mp_uint_t socket_stream_read(mp_obj_t self_in, void *buf, mp_uint_t size,
 STATIC mp_uint_t socket_stream_write(mp_obj_t self_in, const void *buf, mp_uint_t size, int *errcode) {
     socket_obj_t *sock = self_in;
     for (int i=0; i<sock->retries; i++) {
+        printf("write i: %d\n", i);
         MP_THREAD_GIL_EXIT();
         int r = lwip_write_r(sock->fd, buf, size);
         MP_THREAD_GIL_ENTER();
