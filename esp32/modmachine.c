@@ -58,7 +58,7 @@ STATIC mp_obj_t machine_freq(size_t n_args, const mp_obj_t *args) {
         mp_int_t freq = mp_obj_get_int(args[0]) / 1000000;
         if (freq != 80 && freq != 160 && freq != 240) {
             nlr_raise(mp_obj_new_exception_msg(&mp_type_ValueError,
-                                               "frequency can only be either 80Mhz, 160MHz or 240MHz"));
+                "frequency can only be either 80Mhz, 160MHz or 240MHz"));
         }
         /*
         system_update_cpu_freq(freq);
@@ -155,7 +155,7 @@ STATIC const mp_rom_map_elem_t machine_module_globals_table[] = {
 
     { MP_ROM_QSTR(MP_QSTR_time_pulse_us), MP_ROM_PTR(&machine_time_pulse_us_obj) },
 
-
+    { MP_ROM_QSTR(MP_QSTR_Timer), MP_ROM_PTR(&machine_timer_type) },
     { MP_ROM_QSTR(MP_QSTR_Pin), MP_ROM_PTR(&machine_pin_type) },
     { MP_ROM_QSTR(MP_QSTR_TouchPad), MP_ROM_PTR(&machine_touchpad_type) },
     { MP_ROM_QSTR(MP_QSTR_ADC), MP_ROM_PTR(&machine_adc_type) },
