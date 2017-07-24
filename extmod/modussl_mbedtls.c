@@ -65,7 +65,6 @@ struct ssl_args {
 };
 
 STATIC const mp_obj_type_t ussl_socket_type;
-STATIC mp_obj_t socket_setblocking(mp_obj_t self_in, mp_obj_t flag_in);
 
 static void mbedtls_debug(void *ctx, int level, const char *file, int line, const char *str) {
     printf("DBG:%s:%04d: %s\n", file, line, str);
@@ -162,7 +161,6 @@ STATIC mp_obj_ssl_socket_t *socket_new(mp_obj_t sock, struct ssl_args *args) {
     }
 
     o->sock = sock;
-    socket_setblocking(o, mp_const_true);
     mbedtls_ssl_set_bio(&o->ssl, o, _mbedtls_ssl_send, _mbedtls_ssl_recv, NULL);
 
     if (args->key.u_obj != MP_OBJ_NULL) {
@@ -236,7 +234,6 @@ STATIC mp_uint_t socket_write(mp_obj_t o_in, const void *buf, mp_uint_t size, in
     *errcode = ret;
     return MP_STREAM_ERROR;
 }
-
 
 STATIC mp_obj_t socket_setblocking(mp_obj_t self_in, mp_obj_t flag_in) {
     mp_obj_ssl_socket_t *o = MP_OBJ_TO_PTR(self_in);
