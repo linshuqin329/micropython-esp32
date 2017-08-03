@@ -40,7 +40,6 @@
 #include "mbedtls/net.h"
 #include "mbedtls/ssl.h"
 #include "mbedtls/x509_crt.h"
-#include "mbedtls/error.h"
 #include "mbedtls/pk.h"
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
@@ -192,54 +191,8 @@ STATIC mp_obj_ssl_socket_t *socket_new(mp_obj_t sock, struct ssl_args *args) {
 
 STATIC mp_obj_t get_peer_cert(mp_obj_t o_in) {
     mp_obj_ssl_socket_t *o = MP_OBJ_TO_PTR(o_in);
-
-
-#define BUF_SIZE 1024
-    uint8_t buffer[BUF_SIZE];
-    char charBuf[BUF_SIZE];
-
-
     const mbedtls_x509_crt* peer_cert = mbedtls_ssl_get_peer_cert(&o->ssl);
-
-    {
-        int ret;
-        size_t bytesWritten;
-        uint32_t data = 0xdeadbeef;
-        mbedtls_mpi serial;
-        mbedtls_mpi_init(&serial);
-
-        ret = mbedtls_mpi_read_binary(&serial, (const unsigned char *) &data, sizeof(data));
-        printf("read bin: %d\n", ret);
-        mbedtls_mpi_write_string(&serial, 16, charBuf, BUF_SIZE, &bytesWritten);
-        printf("write string: %d\n", ret);
-        printf("original: %X, parsed: %s (%u bytes)\n", data, charBuf, bytesWritten);
-
-        mbedtls_mpi_free(&serial);
-
-
-        return mp_const_none;
-    }
-
-
-    mbedtls_x509write_cert ctx;
-    mbedtls_x509write_crt_init(&ctx);
-    mbedtls_x509write_crt_set_version(&ctx, MBEDTLS_X509_CRT_VERSION_1);
-
-    mp_int_t written = mbedtls_x509write_crt_der(&ctx, buffer, BUF_SIZE, NULL, NULL);
-
-    printf("written: %d\n", written);
-
-
-    if (written < 0) {
-        char errmsg[128];
-        mbedtls_strerror(written, errmsg, 128);
-        printf("error: %s\n", errmsg);
-    }
-
-
-
-    return mp_const_none;
-    // FIX
+    return mp_obj_new_bytearray(peer_cert->raw.len, peer_cert->raw.p);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(get_peer_cert_obj, get_peer_cert);
 
