@@ -190,21 +190,15 @@ STATIC mp_obj_ssl_socket_t *socket_new(mp_obj_t sock, struct ssl_args *args) {
     return o;
 }
 
-STATIC mp_obj_t mod_ssl_getpeercert(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    static const mp_arg_t allowed_args[] = {
-        { MP_QSTR_binary_form, MP_ARG_OBJ, {.u_obj = mp_const_false} }
-    };
-    mp_obj_ssl_socket_t *o = MP_OBJ_TO_PTR(pos_args[0]);
-    mp_arg_val_t args[1];
-    mp_arg_parse_all(n_args - 1, pos_args + 1, kw_args,
-                     MP_ARRAY_SIZE(allowed_args), allowed_args, args);
-    if (args[0].u_obj != mp_const_true) {
-        mp_raise_ValueError("binary_form must be True");
+STATIC mp_obj_t mod_ssl_getpeercert(mp_obj_t o_in, mp_obj_t binary_form) {
+    mp_obj_ssl_socket_t *o = MP_OBJ_TO_PTR(o_in);
+    if (binary_form != mp_const_true) {
+        mp_raise_ValueError("binary_form argument must be True");
     }
     const mbedtls_x509_crt* peer_cert = mbedtls_ssl_get_peer_cert(&o->ssl);
     return mp_obj_new_bytes(peer_cert->raw.p, peer_cert->raw.len);
 }
-STATIC MP_DEFINE_CONST_FUN_OBJ_KW(mod_ssl_getpeercert_obj, 1, mod_ssl_getpeercert);
+STATIC MP_DEFINE_CONST_FUN_OBJ_2(mod_ssl_getpeercert_obj, mod_ssl_getpeercert);
 
 STATIC void socket_print(const mp_print_t *print, mp_obj_t self_in, mp_print_kind_t kind) {
     (void)kind;
