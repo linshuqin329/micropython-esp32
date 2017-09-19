@@ -332,9 +332,11 @@ def bcb(b,e,d,u):
             complete = False
             found = {}
 
-        adx, name, rssi = d
+        adx, name, rssi, manuf = d
         if adx not in found:
             found[adx] = name
+
+        print("raw manuf", manuf)
 
     elif e == b.SCAN_CMPL:
 	print("Scan Complete")

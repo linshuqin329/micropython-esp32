@@ -147,6 +147,8 @@ typedef struct {
             uint8_t*                adv_data; // Need to free this!
             uint8_t                 adv_data_len;
             int                     rssi;
+            uint8_t*                manuf_data; // Need to free this!
+            uint8_t                 manuf_data_len;
         } gattc_scan_res;
 
         struct {
@@ -1905,10 +1907,12 @@ STATIC mp_obj_t network_bluetooth_callback_queue_handler(mp_obj_t arg) {
                         mp_obj_t scan_res_args[] = {
                             MP_OBJ_NEW_BYTES(ESP_BD_ADDR_LEN, cbdata.gattc_scan_res.bda),
                             MP_OBJ_NEW_BYTES(cbdata.gattc_scan_res.adv_data_len, cbdata.gattc_scan_res.adv_data),
-                            mp_obj_new_int(cbdata.gattc_scan_res.rssi)
+                            mp_obj_new_int(cbdata.gattc_scan_res.rssi),
+                            MP_OBJ_NEW_BYTES(cbdata.gattc_scan_res.manuf_data_len, cbdata.gattc_scan_res.manuf_data),
                         } ;
-                        data = mp_obj_new_tuple(3, scan_res_args);
+                        data = mp_obj_new_tuple(4, scan_res_args);
                         FREE(cbdata.gattc_scan_res.adv_data);
+                        FREE(cbdata.gattc_scan_res.manuf_data);
                     }
 
                     mp_obj_t args[] = {bluetooth, MP_OBJ_NEW_SMALL_INT(cbdata.event), data, bluetooth->callback_userdata };
@@ -2264,6 +2268,20 @@ STATIC void network_bluetooth_gap_event_handler(
                             } else {
                                 cbdata.gattc_scan_res.adv_data_len = 0;
                             }
+
+#if 1
+                            uint8_t* manuf_data;
+                            uint8_t  manuf_data_len;
+                            manuf_data = esp_ble_resolve_adv_data(param->scan_rst.ble_adv, ESP_BLE_AD_MANUFACTURER_SPECIFIC_TYPE, &manuf_data_len);
+                            cbdata.gattc_scan_res.manuf_data = MALLOC(manuf_data_len);
+                            if (cbdata.gattc_scan_res.manuf_data != NULL) {
+                                cbdata.gattc_scan_res.manuf_data_len = manuf_data_len;
+                                memcpy(cbdata.gattc_scan_res.manuf_data, manuf_data, manuf_data_len);
+                            } else {
+                                cbdata.gattc_scan_res.manuf_data_len = 0;
+                            }
+
+#endif
                             break;
                         }
 
