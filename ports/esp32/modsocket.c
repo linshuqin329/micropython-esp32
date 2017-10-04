@@ -63,6 +63,7 @@ typedef struct _socket_obj_t {
     uint8_t type;
     uint8_t proto;
     unsigned int retries;
+    struct addrinfo bind_address;
 } socket_obj_t;
 
 void _socket_settimeout(socket_obj_t *sock, uint64_t timeout_ms);
@@ -132,12 +133,12 @@ int _socket_getaddrinfo(const mp_obj_t addrtuple, struct addrinfo **resp) {
     return _socket_getaddrinfo2(elem[0], elem[1], resp);
 }
 
-STATIC mp_obj_t socket_bind(const mp_obj_t arg0, const mp_obj_t arg1) {
+STATIC mp_obj_t socket_bind(mp_obj_t arg0, const mp_obj_t arg1) {
     socket_obj_t *self = MP_OBJ_TO_PTR(arg0);
     struct addrinfo *res;
     _socket_getaddrinfo(arg1, &res);
-    int r = lwip_bind_r(self->fd, res->ai_addr, res->ai_addrlen);
-    lwip_freeaddrinfo(res);
+    memcpy(&self->bind_address, res, sizeof(self->bind_address));
+    int r = lwip_bind_r(self->fd, self->bind_address.ai_addr, self->bind_address.ai_addrlen);
     if (r < 0) exception_from_errno(errno);
     return mp_const_none;
 }
@@ -159,14 +160,60 @@ STATIC mp_obj_t socket_accept(const mp_obj_t arg0) {
     socklen_t addr_len = sizeof(addr);
 
     int new_fd = -1;
-    for (int i=0; i<=self->retries; i++) {
-        MP_THREAD_GIL_EXIT();
-        new_fd = lwip_accept_r(self->fd, &addr, &addr_len);
-        MP_THREAD_GIL_ENTER();
-        if (new_fd >= 0) break;
-        if (errno != EAGAIN) exception_from_errno(errno);
-        check_for_exceptions();
+
+    if (self->type == SOCK_STREAM) {
+        for (int i=0; i<=self->retries; i++) {
+            MP_THREAD_GIL_EXIT();
+            new_fd = lwip_accept_r(self->fd, &addr, &addr_len);
+            MP_THREAD_GIL_ENTER();
+            if (new_fd >= 0) break;
+            if (errno != EAGAIN) exception_from_errno(errno);
+            check_for_exceptions();
+        }
+    } else if (self->type == SOCK_DGRAM) {
+        uint8_t buf;
+        int r = -1;
+
+
+        // do a recvfrom with MSG_PEEK, just to get address
+        for (int i=0; i<=self->retries; i++) {
+            MP_THREAD_GIL_EXIT();
+            r = lwip_recvfrom_r(self->fd, &buf, sizeof(buf), MSG_PEEK, &addr, &addr_len);
+            MP_THREAD_GIL_ENTER(); 
+            if (r >= 0) {
+                break;
+            }
+            if (errno != EWOULDBLOCK) {
+                exception_from_errno(errno);
+            }
+            check_for_exceptions();
+        }
+        
+        if (r < 0) {
+            mp_raise_OSError(MP_ETIMEDOUT);
+        }
+
+        // Hijack listening socket
+        
+        new_fd = self->fd;
+        if (lwip_connect_r(new_fd, &addr, addr_len) < 0) {
+            exception_from_errno(errno);
+        }
+        
+        // New socket for listening
+        self->fd = lwip_socket(self->domain, self->type, self->proto);
+        if (self->fd < 0) { 
+            exception_from_errno(errno);
+        }
+
+        // re-bind
+        int val = 1;
+        lwip_setsockopt_r(self->fd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+        if (lwip_bind_r(self->fd, self->bind_address.ai_addr, self->bind_address.ai_addrlen) < 0) {
+            exception_from_errno(errno);
+        }
     }
+
     if (new_fd < 0) mp_raise_OSError(MP_ETIMEDOUT);
 
     // create new socket object
@@ -177,6 +224,7 @@ STATIC mp_obj_t socket_accept(const mp_obj_t arg0) {
     sock->type = self->type;
     sock->proto = self->proto;
     _socket_settimeout(sock, UINT64_MAX);
+    bzero(&sock->bind_address, sizeof(sock->bind_address));
 
     // make the return value
     uint8_t *ip = (uint8_t*)&((struct sockaddr_in*)&addr)->sin_addr;
@@ -405,8 +453,12 @@ STATIC mp_uint_t socket_stream_read(mp_obj_t self_in, void *buf, mp_uint_t size,
         MP_THREAD_GIL_EXIT();
         int r = lwip_recvfrom_r(sock->fd, buf, size, 0, NULL, NULL);
         MP_THREAD_GIL_ENTER();
-        if (r >= 0) return r;
-        if (r < 0 && errno != EWOULDBLOCK) { *errcode = errno; return MP_STREAM_ERROR; }
+        if (r >= 0) {
+            printf("read %d bytes\n", r);
+            return r;
+        }
+        if (r < 0 && errno != EWOULDBLOCK) { *errcode = errno; 
+            return MP_STREAM_ERROR; }
         check_for_exceptions();
     }
     *errcode = sock->retries == 0 ? MP_EWOULDBLOCK : MP_ETIMEDOUT;
@@ -419,8 +471,12 @@ STATIC mp_uint_t socket_stream_write(mp_obj_t self_in, const void *buf, mp_uint_
         MP_THREAD_GIL_EXIT();
         int r = lwip_write_r(sock->fd, buf, size);
         MP_THREAD_GIL_ENTER();
-        if (r > 0) return r;
-        if (r < 0 && errno != EWOULDBLOCK) { *errcode = errno; return MP_STREAM_ERROR; }
+        if (r > 0) {
+            printf("write %d bytes\n", r);
+            return r;
+        }
+        if (r < 0 && errno != EWOULDBLOCK) { *errcode = errno; 
+            return MP_STREAM_ERROR; }
         check_for_exceptions();
     }
     *errcode = sock->retries == 0 ? MP_EWOULDBLOCK : MP_ETIMEDOUT;
@@ -450,6 +506,8 @@ STATIC mp_uint_t socket_stream_ioctl(mp_obj_t self_in, mp_uint_t request, uintpt
         if (FD_ISSET(socket->fd, &wfds)) ret |= MP_STREAM_POLL_WR;
         if (FD_ISSET(socket->fd, &efds)) ret |= MP_STREAM_POLL_HUP;
         return ret;
+    } else if (request == MP_STREAM_GET_SOCKET_TYPE) {
+        return socket->type;
     }
 
     *errcode = MP_EINVAL;
@@ -515,6 +573,7 @@ STATIC mp_obj_t get_socket(size_t n_args, const mp_obj_t *args) {
         exception_from_errno(errno);
     }
     _socket_settimeout(sock, UINT64_MAX);
+    bzero(&sock->bind_address, sizeof(sock->bind_address));
 
     return MP_OBJ_FROM_PTR(sock);
 }

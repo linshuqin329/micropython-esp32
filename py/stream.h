@@ -35,12 +35,13 @@
 #define MP_STREAM_FLUSH (1)
 #define MP_STREAM_SEEK  (2)
 #define MP_STREAM_POLL  (3)
-//#define MP_STREAM_CLOSE       (4)  // Not yet implemented
-#define MP_STREAM_TIMEOUT       (5)  // Get/set timeout (single op)
-#define MP_STREAM_GET_OPTS      (6)  // Get stream options
-#define MP_STREAM_SET_OPTS      (7)  // Set stream options
-#define MP_STREAM_GET_DATA_OPTS (8)  // Get data/message options
-#define MP_STREAM_SET_DATA_OPTS (9)  // Set data/message options
+//#define MP_STREAM_CLOSE         (4)  // Not yet implemented
+#define MP_STREAM_TIMEOUT         (5)  // Get/set timeout (single op)
+#define MP_STREAM_GET_OPTS        (6)  // Get stream options
+#define MP_STREAM_SET_OPTS        (7)  // Set stream options
+#define MP_STREAM_GET_DATA_OPTS   (8)  // Get data/message options
+#define MP_STREAM_SET_DATA_OPTS   (9)  // Set data/message options
+#define MP_STREAM_GET_SOCKET_TYPE (9)  // Get socket type, if any (e.g. SOCK_DGRAM)
 
 // These poll ioctl values are compatible with Linux
 #define MP_STREAM_POLL_RD  (0x0001)

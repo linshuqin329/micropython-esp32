@@ -65,7 +65,6 @@ void mp_task(void *pvParameter) {
     mp_thread_init(&mp_task_stack[0], MP_TASK_STACK_LEN);
     #endif
     uart_init();
-
 soft_reset:
     // initialise the stack pointer for the main thread
     mp_stack_set_top((void *)sp);
@@ -125,7 +124,9 @@ void nlr_jump_fail(void *val) {
     esp_restart();
 }
 
+#if 0
 // modussl_mbedtls uses this function but it's not enabled in ESP IDF
 void mbedtls_debug_set_threshold(int threshold) {
     (void)threshold;
 }
+#endif

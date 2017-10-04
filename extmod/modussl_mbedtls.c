@@ -35,6 +35,8 @@
 #include "py/runtime.h"
 #include "py/stream.h"
 #include "py/obj.h"
+#include "py/mphal.h"
+
 
 // mbedtls_time_t
 #include "mbedtls/platform.h"
@@ -45,6 +47,13 @@
 #include "mbedtls/entropy.h"
 #include "mbedtls/ctr_drbg.h"
 #include "mbedtls/debug.h"
+//#include "mbedtls/timing.h"
+#include "mbedtls/ssl_cookie.h"
+
+#include "lwip/sockets.h"
+#undef read         // lwip/sockets.h defines these macros, 
+#undef write        // which cause errors
+#undef ioctl        
 
 typedef struct _mp_obj_ssl_socket_t {
     mp_obj_base_t base;
@@ -56,6 +65,9 @@ typedef struct _mp_obj_ssl_socket_t {
     mbedtls_x509_crt cacert;
     mbedtls_x509_crt cert;
     mbedtls_pk_context pkey;
+    uint64_t int_timeout;
+    uint64_t fin_timeout;
+    mbedtls_ssl_cookie_ctx cookie_ctx;
 } mp_obj_ssl_socket_t;
 
 struct ssl_args {
@@ -111,6 +123,42 @@ int _mbedtls_ssl_recv(void *ctx, byte *buf, size_t len) {
     }
 }
 
+STATIC void set_delay(void* data, uint32_t int_ms, uint32_t fin_ms) {
+    //printf("set delay called with: %d %d\n", int_ms, fin_ms);
+    mp_obj_ssl_socket_t* ssl_socket = (mp_obj_ssl_socket_t*) data;
+
+    uint32_t now = mp_hal_ticks_ms();
+
+    if (fin_ms != 0) {
+        ssl_socket->int_timeout = now + int_ms;
+        ssl_socket->fin_timeout = now + fin_ms;
+    } else {
+        ssl_socket->fin_timeout = 0;
+    }
+}
+
+STATIC int get_delay(void* data) {
+    mp_obj_ssl_socket_t* ssl_socket = (mp_obj_ssl_socket_t*) data;
+
+    int ret = 0;
+
+    if (ssl_socket->fin_timeout == 0) {
+        ret = -1;
+    } else {
+        uint32_t now = mp_hal_ticks_ms();
+
+        if (now >= ssl_socket->fin_timeout) {
+            ret = 2;
+        } else if (now >= ssl_socket->int_timeout) {
+            ret = 1;
+        }
+    }
+    //printf("get delay called returning%d\n", ret);
+    return ret;
+
+}
+
+
 
 STATIC mp_obj_ssl_socket_t *socket_new(mp_obj_t sock, struct ssl_args *args) {
     mp_obj_ssl_socket_t *o = m_new_obj(mp_obj_ssl_socket_t);
@@ -134,9 +182,18 @@ STATIC mp_obj_ssl_socket_t *socket_new(mp_obj_t sock, struct ssl_args *args) {
         assert(0);
     }
 
+    mp_obj_type_t *type = mp_obj_get_type(sock);
+    const mp_stream_p_t *sock_stream = type->protocol;
+    int errcode;
+    bool is_dgram  = false;
+    if (sock_stream->ioctl != NULL) {
+        is_dgram = sock_stream->ioctl(sock, MP_STREAM_GET_SOCKET_TYPE, 0, & errcode) == SOCK_DGRAM;
+    }
+
+
     ret = mbedtls_ssl_config_defaults(&o->conf,
                     args->server_side.u_bool ? MBEDTLS_SSL_IS_SERVER : MBEDTLS_SSL_IS_CLIENT,
-                    MBEDTLS_SSL_TRANSPORT_STREAM,
+                    is_dgram ? MBEDTLS_SSL_TRANSPORT_DATAGRAM : MBEDTLS_SSL_TRANSPORT_STREAM,
                     MBEDTLS_SSL_PRESET_DEFAULT);
     if (ret != 0) {
         assert(0);
@@ -146,7 +203,34 @@ STATIC mp_obj_ssl_socket_t *socket_new(mp_obj_t sock, struct ssl_args *args) {
     mbedtls_ssl_conf_rng(&o->conf, mbedtls_ctr_drbg_random, &o->ctr_drbg);
     mbedtls_ssl_conf_dbg(&o->conf, mbedtls_debug, NULL);
 
+    if (is_dgram) { // Enable DTLS
+        if(args->server_side.u_bool) {
+            printf("setting up cookie stuff\n");
+            mbedtls_ssl_cookie_init(&o->cookie_ctx);
+            assert(mbedtls_ssl_cookie_setup(&o->cookie_ctx, mbedtls_ctr_drbg_random, &o->ctr_drbg) == 0);
+            //mbedtls_ssl_conf_dtls_cookies(&o->conf, mbedtls_ssl_cookie_write, mbedtls_ssl_cookie_check, &o->cookie_ctx);
+            // FIXME: Disable cookie checking for now
+            mbedtls_ssl_conf_dtls_cookies(&o->conf, NULL, NULL, &o->cookie_ctx);
+
+        }
+        mbedtls_ssl_set_timer_cb(&o->ssl, o, set_delay, get_delay);
+    }
+
     ret = mbedtls_ssl_setup(&o->ssl, &o->conf);
+
+    // This has to come after mbedtls_ssl_setup()
+    
+    if (is_dgram && args->server_side.u_bool) {
+        uint8_t *cid = malloc(6);
+        memcpy(cid,"abcdef", 6);
+        int ret = mbedtls_ssl_set_client_transport_id(&o->ssl, cid, 6);
+        if (ret) {
+            printf("mbedtls_ssl_set_client_transport_id error: -%x %s:%d\n", -ret, __FILE__, __LINE__);
+            mp_raise_OSError(MP_EIO);
+        }
+    }
+
+
     if (ret != 0) {
         assert(0);
     }
