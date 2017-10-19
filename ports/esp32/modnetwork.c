@@ -54,7 +54,6 @@
 
 #define MODNETWORK_INCLUDE_CONSTANTS (1)
 
-MP_DECLARE_CONST_FUN_OBJ_KW(get_lan_obj);
 
 NORETURN void _esp_exceptions(esp_err_t e) {
    switch (e) {
@@ -190,7 +189,6 @@ STATIC void require_if(mp_obj_t wlan_if, int if_no) {
 STATIC mp_obj_t get_wlan(size_t n_args, const mp_obj_t *args) {
     static int initialized = 0;
     if (!initialized) {
-        ESP_LOGD("modnetwork", "esp_event_loop_init done");
         wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
         ESP_LOGD("modnetwork", "Initializing WiFi");
         ESP_EXCEPTIONS( esp_wifi_init(&cfg) );
@@ -220,6 +218,7 @@ STATIC mp_obj_t esp_initialize() {
         tcpip_adapter_init();
         ESP_LOGD("modnetwork", "Initializing Event Loop");
         ESP_EXCEPTIONS( esp_event_loop_init(event_handler, NULL) );
+        ESP_LOGD("modnetwork", "esp_event_loop_init done");
         initialized = 1;
     }
     return mp_const_none;

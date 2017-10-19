@@ -36,38 +36,36 @@
 
 #include "modnetwork.h"
 
-MP_DECLARE_CONST_FUN_OBJ_VAR_BETWEEN(esp_ifconfig_obj);
-
 typedef struct _lan_if_obj_t {
-    mp_obj_base_t               base;
-    int                         if_id; // MUST BE FIRST
-    bool                        initialized;
-    bool                        active;
-    uint8_t                     mdc_pin;
-    uint8_t                     mdio_pin;
-    int8_t                      phy_power_pin;
-    uint8_t                     phy_addr;
-    uint8_t                     phy_type;
-    eth_phy_check_link_func     link_func;
-    eth_phy_power_enable_func   power_func;
+    mp_obj_base_t base;
+    int if_id; // MUST BE FIRST to match wlan_if_obj_t
+    bool initialized;
+    bool active;
+    uint8_t mdc_pin;
+    uint8_t mdio_pin;
+    int8_t phy_power_pin;
+    uint8_t phy_addr;
+    uint8_t phy_type;
+    eth_phy_check_link_func link_func;
+    eth_phy_power_enable_func power_func;
 } lan_if_obj_t;
 
 const mp_obj_type_t lan_if_type;
 STATIC lan_if_obj_t lan_obj = {{&lan_if_type}, ESP_IF_ETH, false, false};
 
 STATIC void phy_power_enable(bool enable) {
-    lan_if_obj_t* self = MP_OBJ_TO_PTR(&lan_obj);
+    lan_if_obj_t* self = &lan_obj;
 
     if (self->phy_power_pin != -1) {
 
         if (!enable) {
-            /* Do the PHY-specific power_enable(false) function before powering down */
+            // Do the PHY-specific power_enable(false) function before powering down 
             self->power_func(false);
         }
 
         gpio_pad_select_gpio(self->phy_power_pin);
-        gpio_set_direction(self->phy_power_pin,GPIO_MODE_OUTPUT);
-        if(enable == true) {
+        gpio_set_direction(self->phy_power_pin, GPIO_MODE_OUTPUT);
+        if (enable) {
             gpio_set_level(self->phy_power_pin, 1);
         } else {
             gpio_set_level(self->phy_power_pin, 0);
@@ -77,31 +75,31 @@ STATIC void phy_power_enable(bool enable) {
         vTaskDelay(1);
 
         if (enable) {
-            /* Run the PHY-specific power on operations now the PHY has power */
+            // Run the PHY-specific power on operations now the PHY has power 
             self->power_func(true);
         }
     }
 }
 
 STATIC void init_lan_rmii() {
-    lan_if_obj_t* self = MP_OBJ_TO_PTR(&lan_obj);
+    lan_if_obj_t* self = &lan_obj;
     phy_rmii_configure_data_interface_pins();
     phy_rmii_smi_configure_pins(self->mdc_pin, self->mdio_pin);
 }
 
 STATIC void init_lan() {
-    lan_if_obj_t* self = MP_OBJ_TO_PTR(&lan_obj);
+    lan_if_obj_t* self = &lan_obj;
     eth_config_t config;
 
     switch (self->phy_type) {
         case PHY_TLK110:
-            config = phy_tlk110_default_ethernet_config; 
+            config = phy_tlk110_default_ethernet_config;
             break;
         case PHY_LAN8720:
             config = phy_lan8720_default_ethernet_config;
             break;
     }
-    
+
     self->link_func = config.phy_check_link;
 
     // Replace default power func with our own
@@ -121,7 +119,7 @@ STATIC void init_lan() {
 }
 
 STATIC mp_obj_t get_lan(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    lan_if_obj_t* self = MP_OBJ_TO_PTR(&lan_obj);
+    lan_if_obj_t* self = &lan_obj;
 
     if (self->initialized) {
         mp_raise_msg(&mp_type_OSError, "ethernet already initialized");
@@ -149,7 +147,7 @@ STATIC mp_obj_t get_lan(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_ar
         }
     }
 
-    for(int i = ARG_mdc; i <= ARG_power; ++i) {
+    for (int i = ARG_mdc; i <= ARG_power; ++i) {
         if (args[i].u_obj == mp_const_none && i == ARG_power) {
             args[i].u_int = -1;
         } else if (args[i].u_obj != MP_OBJ_NULL) {
@@ -179,7 +177,6 @@ STATIC mp_obj_t get_lan(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_ar
 MP_DEFINE_CONST_FUN_OBJ_KW(get_lan_obj, 0, get_lan);
 
 STATIC mp_obj_t lan_active(size_t n_args, const mp_obj_t *args) {
-
     lan_if_obj_t *self = MP_OBJ_TO_PTR(args[0]);
 
     if (n_args > 1) {
@@ -195,19 +192,18 @@ STATIC mp_obj_t lan_active(size_t n_args, const mp_obj_t *args) {
             }
         }
     }
-    return self->active ? mp_const_true : mp_const_false;
+    return mp_obj_new_bool(self->active);
 }
-
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(lan_active_obj, 1, 2, lan_active);
 
 STATIC mp_obj_t lan_status(mp_obj_t self_in) {
-        return mp_const_none;
+    return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(lan_status_obj, lan_status);
 
 STATIC mp_obj_t lan_isconnected(mp_obj_t self_in) {
     lan_if_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    return self->link_func() ? mp_const_true : mp_const_false;
+    return mp_obj_new_bool(self->link_func());
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(lan_isconnected_obj, lan_isconnected);
 
@@ -223,7 +219,5 @@ STATIC MP_DEFINE_CONST_DICT(lan_if_locals_dict, lan_if_locals_dict_table);
 const mp_obj_type_t lan_if_type = {
     { &mp_type_type },
     .name = MP_QSTR_LAN,
-    .locals_dict = (mp_obj_t)&lan_if_locals_dict,
+    .locals_dict = (mp_obj_dict_t*)&lan_if_locals_dict,
 };
-
-
