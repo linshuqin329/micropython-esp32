@@ -35,7 +35,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "network_lan.h"
 
 #include "py/nlr.h"
 #include "py/objlist.h"
@@ -50,6 +49,8 @@
 #include "esp_log.h"
 #include "lwip/dns.h"
 #include "tcpip_adapter.h"
+
+#include "modnetwork.h"
 
 #define MODNETWORK_INCLUDE_CONSTANTS (1)
 

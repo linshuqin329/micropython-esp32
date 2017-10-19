@@ -26,7 +26,6 @@
  * THE SOFTWARE.
  */
 
-#include "network_lan.h"
 #include "py/runtime.h"
 #include "py/mphal.h"
 
@@ -34,6 +33,8 @@
 #include "eth_phy/phy_tlk110.h"
 #include "eth_phy/phy_lan8720.h"
 #include "tcpip_adapter.h"
+
+#include "modnetwork.h"
 
 MP_DECLARE_CONST_FUN_OBJ_VAR_BETWEEN(esp_ifconfig_obj);
 
