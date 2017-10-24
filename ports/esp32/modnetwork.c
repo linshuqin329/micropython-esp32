@@ -7,6 +7,7 @@
  * The MIT License (MIT)
  *
  * Copyright (c) 2016, 2017 Nick Moore @mnemote
+ * Copyright (c) 2017 "Eric Poulsen" <eric@zyxod.com>
  *
  * Based on esp8266/modnetwork.c which is Copyright (c) 2015 Paul Sokolovsky
  * And the ESP IDF example code which is Public Domain / CC0
@@ -34,6 +35,7 @@
 #include <stdint.h>
 #include <string.h>
 
+
 #include "py/nlr.h"
 #include "py/objlist.h"
 #include "py/runtime.h"
@@ -47,11 +49,11 @@
 #include "esp_log.h"
 #include "lwip/dns.h"
 #include "tcpip_adapter.h"
-#include "eth_phy/phy.h"
-#include "eth_phy/phy_tlk110.h"
-#include "eth_phy/phy_lan8720.h"
+
+#include "modnetwork.h"
 
 #define MODNETWORK_INCLUDE_CONSTANTS (1)
+
 
 NORETURN void _esp_exceptions(esp_err_t e) {
    switch (e) {
@@ -101,33 +103,14 @@ static inline void esp_exceptions(esp_err_t e) {
 
 #define ESP_EXCEPTIONS(x) do { esp_exceptions(x); } while (0);
 
-enum { PHY_LAN8720, PHY_TLK110 };
-
 typedef struct _wlan_if_obj_t {
     mp_obj_base_t base;
     int if_id;
 } wlan_if_obj_t;
 
-typedef struct _lan_if_obj_t {
-    mp_obj_base_t               base;
-    int                         if_id; // MUST BE FIRST
-    bool                        initialized;
-    bool                        active;
-    uint8_t                     mdc_pin;
-    uint8_t                     mdio_pin;
-    int8_t                      phy_power_pin;
-    uint8_t                     phy_addr;
-    uint8_t                     phy_type;
-    eth_phy_check_link_func     link_func;
-    eth_phy_power_enable_func   power_func;
-} lan_if_obj_t;
-
 const mp_obj_type_t wlan_if_type;
 STATIC const wlan_if_obj_t wlan_sta_obj = {{&wlan_if_type}, WIFI_IF_STA};
 STATIC const wlan_if_obj_t wlan_ap_obj = {{&wlan_if_type}, WIFI_IF_AP};
-
-const mp_obj_type_t lan_if_type;
-STATIC lan_if_obj_t lan_obj = {{&lan_if_type}, ESP_IF_ETH, false, false};
 
 //static wifi_config_t wifi_ap_config = {{{0}}};
 static wifi_config_t wifi_sta_config = {{{0}}};
@@ -206,7 +189,6 @@ STATIC void require_if(mp_obj_t wlan_if, int if_no) {
 STATIC mp_obj_t get_wlan(size_t n_args, const mp_obj_t *args) {
     static int initialized = 0;
     if (!initialized) {
-        ESP_LOGD("modnetwork", "esp_event_loop_init done");
         wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
         ESP_LOGD("modnetwork", "Initializing WiFi");
         ESP_EXCEPTIONS( esp_wifi_init(&cfg) );
@@ -229,129 +211,6 @@ STATIC mp_obj_t get_wlan(size_t n_args, const mp_obj_t *args) {
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(get_wlan_obj, 0, 1, get_wlan);
 
-STATIC void phy_power_enable(bool enable) {
-    lan_if_obj_t* self = MP_OBJ_TO_PTR(&lan_obj);
-
-    if (self->phy_power_pin != -1) {
-
-        if (!enable) {
-            /* Do the PHY-specific power_enable(false) function before powering down */
-            self->power_func(false);
-        }
-
-        gpio_pad_select_gpio(self->phy_power_pin);
-        gpio_set_direction(self->phy_power_pin,GPIO_MODE_OUTPUT);
-        if(enable == true) {
-            gpio_set_level(self->phy_power_pin, 1);
-        } else {
-            gpio_set_level(self->phy_power_pin, 0);
-        }
-
-        // Allow the power up/down to take effect, min 300us
-        vTaskDelay(1);
-
-        if (enable) {
-            /* Run the PHY-specific power on operations now the PHY has power */
-            self->power_func(true);
-        }
-    }
-}
-
-STATIC void init_lan_rmii() {
-    lan_if_obj_t* self = MP_OBJ_TO_PTR(&lan_obj);
-    phy_rmii_configure_data_interface_pins();
-    phy_rmii_smi_configure_pins(self->mdc_pin, self->mdio_pin);
-}
-
-STATIC void init_lan() {
-    lan_if_obj_t* self = MP_OBJ_TO_PTR(&lan_obj);
-    eth_config_t config;
-
-    switch (self->phy_type) {
-        case PHY_TLK110:
-            config = phy_tlk110_default_ethernet_config; 
-            break;
-        case PHY_LAN8720:
-            config = phy_lan8720_default_ethernet_config;
-            break;
-    }
-    
-    self->link_func = config.phy_check_link;
-
-    // Replace default power func with our own
-    self->power_func = config.phy_power_enable;
-    config.phy_power_enable = phy_power_enable;
-
-    config.phy_addr = self->phy_addr;
-    config.gpio_config = init_lan_rmii;
-    config.tcpip_input = tcpip_adapter_eth_input;
-
-    if (esp_eth_init(&config) == ESP_OK) {
-        esp_eth_enable();
-        self->active = true;
-    } else {
-        mp_raise_msg(&mp_type_OSError, "esp_eth_init() failed");
-    }
-}
-
-STATIC mp_obj_t get_lan(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    lan_if_obj_t* self = MP_OBJ_TO_PTR(&lan_obj);
-
-    if (self->initialized) {
-        return MP_OBJ_FROM_PTR(&lan_obj);
-    }
-
-    enum { ARG_id, ARG_mdc, ARG_mdio, ARG_power, ARG_phy_addr, ARG_phy_type };
-
-    uint8_t default_pins[] = {23, 18, 17}; // mdc, mdio, power
-
-    static const mp_arg_t allowed_args[] = {
-        { MP_QSTR_id,           MP_ARG_OBJ, {.u_obj = mp_const_none} },
-        { MP_QSTR_mdc,          MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
-        { MP_QSTR_mdio,         MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
-        { MP_QSTR_power,        MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
-        { MP_QSTR_phy_addr,     MP_ARG_INT, {.u_int = 0x01} },
-        { MP_QSTR_phy_type,     MP_ARG_INT, {.u_int = PHY_LAN8720} },
-    };
-
-    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
-    mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
-
-    if (args[ARG_id].u_obj != mp_const_none) {
-        if (mp_obj_get_int(args[ARG_id].u_obj) != 0) {
-            mp_raise_ValueError("invalid LAN interface identifier");
-        }
-    }
-
-    for(int i = ARG_mdc; i <= ARG_power; ++i) {
-        if (args[i].u_obj == mp_const_none && i == ARG_power) {
-            args[i].u_int = -1;
-        } else if (args[i].u_obj != MP_OBJ_NULL) {
-            args[i].u_int = machine_pin_get_id(args[i].u_obj);
-        } else {
-            args[i].u_int = default_pins[i - ARG_mdc];
-        }
-    }
-
-    if (args[ARG_phy_addr].u_int < 0x00 || args[ARG_phy_addr].u_int > 0x1f) {
-        mp_raise_ValueError("invalid phy address");
-    }
-
-    if (args[ARG_phy_type].u_int != PHY_LAN8720 && args[ARG_phy_type].u_int != PHY_TLK110) {
-        mp_raise_ValueError("invalid phy type");
-    }
-
-    self->mdc_pin = args[ARG_mdc].u_int;
-    self->mdio_pin = args[ARG_mdio].u_int;
-    self->phy_power_pin = args[ARG_power].u_int;
-    self->phy_addr = args[ARG_phy_addr].u_int;
-    self->phy_type = args[ARG_phy_type].u_int;
-    self->initialized = true;
-    init_lan();
-    return MP_OBJ_FROM_PTR(&lan_obj);
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_KW(get_lan_obj, 0, get_lan);
-
 STATIC mp_obj_t esp_initialize() {
     static int initialized = 0;
     if (!initialized) {
@@ -359,6 +218,7 @@ STATIC mp_obj_t esp_initialize() {
         tcpip_adapter_init();
         ESP_LOGD("modnetwork", "Initializing Event Loop");
         ESP_EXCEPTIONS( esp_event_loop_init(event_handler, NULL) );
+        ESP_LOGD("modnetwork", "esp_event_loop_init done");
         initialized = 1;
     }
     return mp_const_none;
@@ -386,28 +246,6 @@ STATIC mp_obj_t esp_active(size_t n_args, const mp_obj_t *args) {
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp_active_obj, 1, 2, esp_active);
-
-STATIC mp_obj_t lan_active(size_t n_args, const mp_obj_t *args) {
-
-    lan_if_obj_t *self = MP_OBJ_TO_PTR(args[0]);
-
-    if (n_args > 1) {
-        if (mp_obj_is_true(args[1])) {
-            self->active = (esp_eth_enable() == ESP_OK);
-            if (!self->active) {
-                mp_raise_msg(&mp_type_OSError, "ethernet enable failed");
-            }
-        } else {
-            self->active = !(esp_eth_disable() == ESP_OK);
-            if (self->active) {
-                mp_raise_msg(&mp_type_OSError, "ethernet disable failed");
-            }
-        }
-    }
-    return self->active ? mp_const_true : mp_const_false;
-}
-
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(lan_active_obj, 1, 2, lan_active);
 
 STATIC mp_obj_t esp_connect(size_t n_args, const mp_obj_t *args) {
 
@@ -444,12 +282,6 @@ STATIC mp_obj_t esp_status(mp_obj_t self_in) {
 }
 
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(esp_status_obj, esp_status);
-
-STATIC mp_obj_t lan_isconnected(mp_obj_t self_in) {
-    lan_if_obj_t *self = MP_OBJ_TO_PTR(self_in);
-    return self->link_func() ? mp_const_true : mp_const_false;
-}
-STATIC MP_DEFINE_CONST_FUN_OBJ_1(lan_isconnected_obj, lan_isconnected);
 
 STATIC mp_obj_t esp_scan(mp_obj_t self_in) {
     // check that STA mode is active
@@ -550,7 +382,7 @@ STATIC mp_obj_t esp_ifconfig(size_t n_args, const mp_obj_t *args) {
     }
 }
 
-STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp_ifconfig_obj, 1, 2, esp_ifconfig);
+MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp_ifconfig_obj, 1, 2, esp_ifconfig);
 
 STATIC mp_obj_t esp_config(size_t n_args, const mp_obj_t *args, mp_map_t *kwargs) {
     if (n_args != 1 && kwargs->used != 0) {
@@ -697,21 +529,6 @@ const mp_obj_type_t wlan_if_type = {
     { &mp_type_type },
     .name = MP_QSTR_WLAN,
     .locals_dict = (mp_obj_t)&wlan_if_locals_dict,
-};
-
-STATIC const mp_map_elem_t lan_if_locals_dict_table[] = {
-    { MP_OBJ_NEW_QSTR(MP_QSTR_active), (mp_obj_t)&lan_active_obj },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_isconnected), (mp_obj_t)&lan_isconnected_obj },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_status), (mp_obj_t)&esp_status_obj },
-    { MP_OBJ_NEW_QSTR(MP_QSTR_ifconfig), (mp_obj_t)&esp_ifconfig_obj },
-};
-
-STATIC MP_DEFINE_CONST_DICT(lan_if_locals_dict, lan_if_locals_dict_table);
-
-const mp_obj_type_t lan_if_type = {
-    { &mp_type_type },
-    .name = MP_QSTR_LAN,
-    .locals_dict = (mp_obj_t)&lan_if_locals_dict,
 };
 
 STATIC mp_obj_t esp_phy_mode(size_t n_args, const mp_obj_t *args) {
