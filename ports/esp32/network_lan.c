@@ -87,11 +87,50 @@ STATIC void init_lan_rmii() {
     phy_rmii_smi_configure_pins(self->mdc_pin, self->mdio_pin);
 }
 
-STATIC void init_lan() {
+STATIC mp_obj_t get_lan(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
     lan_if_obj_t* self = &lan_obj;
+
+    if (self->initialized) {
+        mp_raise_msg(&mp_type_OSError, "ethernet already initialized");
+    }
+
+    enum { ARG_id, ARG_mdc, ARG_mdio, ARG_power, ARG_phy_addr, ARG_phy_type };
+
+
+    static const mp_arg_t allowed_args[] = {
+        { MP_QSTR_id,           MP_ARG_OBJ, {.u_obj = mp_const_none} },
+        { MP_QSTR_mdc,          MP_ARG_KW_ONLY | MP_ARG_REQUIRED | MP_ARG_OBJ },
+        { MP_QSTR_mdio,         MP_ARG_KW_ONLY | MP_ARG_REQUIRED | MP_ARG_OBJ },
+        { MP_QSTR_power,        MP_ARG_KW_ONLY | MP_ARG_REQUIRED | MP_ARG_OBJ },
+        { MP_QSTR_phy_addr,     MP_ARG_KW_ONLY | MP_ARG_REQUIRED | MP_ARG_INT },
+        { MP_QSTR_phy_type,     MP_ARG_KW_ONLY | MP_ARG_REQUIRED | MP_ARG_INT },
+    };
+
+    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
+    mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
+
+    if (args[ARG_id].u_obj != mp_const_none) {
+        if (mp_obj_get_int(args[ARG_id].u_obj) != 0) {
+            mp_raise_ValueError("invalid LAN interface identifier");
+        }
+    }
+
+    self->mdc_pin = machine_pin_get_id(args[ARG_mdc].u_obj);
+    self->mdio_pin = machine_pin_get_id(args[ARG_mdio].u_obj);
+    self->phy_power_pin = args[ARG_power].u_obj == mp_const_none ? -1 : machine_pin_get_id(args[ARG_power].u_obj);
+
+    if (args[ARG_phy_addr].u_int < 0x00 || args[ARG_phy_addr].u_int > 0x1f) {
+        mp_raise_ValueError("invalid phy address");
+    }
+
+    if (args[ARG_phy_type].u_int != PHY_LAN8720 && args[ARG_phy_type].u_int != PHY_TLK110) {
+        mp_raise_ValueError("invalid phy type");
+    }
+
+
     eth_config_t config;
 
-    switch (self->phy_type) {
+    switch (args[ARG_phy_type].u_int) {
         case PHY_TLK110:
             config = phy_tlk110_default_ethernet_config;
             break;
@@ -106,72 +145,17 @@ STATIC void init_lan() {
     self->power_func = config.phy_power_enable;
     config.phy_power_enable = phy_power_enable;
 
-    config.phy_addr = self->phy_addr;
+    config.phy_addr = args[ARG_phy_addr].u_int;
     config.gpio_config = init_lan_rmii;
     config.tcpip_input = tcpip_adapter_eth_input;
 
     if (esp_eth_init(&config) == ESP_OK) {
         esp_eth_enable();
         self->active = true;
+        self->initialized = true;
     } else {
         mp_raise_msg(&mp_type_OSError, "esp_eth_init() failed");
     }
-}
-
-STATIC mp_obj_t get_lan(size_t n_args, const mp_obj_t *pos_args, mp_map_t *kw_args) {
-    lan_if_obj_t* self = &lan_obj;
-
-    if (self->initialized) {
-        mp_raise_msg(&mp_type_OSError, "ethernet already initialized");
-    }
-
-    enum { ARG_id, ARG_mdc, ARG_mdio, ARG_power, ARG_phy_addr, ARG_phy_type };
-
-    uint8_t default_pins[] = {23, 18, 17}; // mdc, mdio, power
-
-    static const mp_arg_t allowed_args[] = {
-        { MP_QSTR_id,           MP_ARG_OBJ, {.u_obj = mp_const_none} },
-        { MP_QSTR_mdc,          MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
-        { MP_QSTR_mdio,         MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
-        { MP_QSTR_power,        MP_ARG_OBJ, {.u_obj = MP_OBJ_NULL} },
-        { MP_QSTR_phy_addr,     MP_ARG_INT, {.u_int = 0x01} },
-        { MP_QSTR_phy_type,     MP_ARG_INT, {.u_int = PHY_LAN8720} },
-    };
-
-    mp_arg_val_t args[MP_ARRAY_SIZE(allowed_args)];
-    mp_arg_parse_all(n_args, pos_args, kw_args, MP_ARRAY_SIZE(allowed_args), allowed_args, args);
-
-    if (args[ARG_id].u_obj != mp_const_none) {
-        if (mp_obj_get_int(args[ARG_id].u_obj) != 0) {
-            mp_raise_ValueError("invalid LAN interface identifier");
-        }
-    }
-
-    for (int i = ARG_mdc; i <= ARG_power; ++i) {
-        if (args[i].u_obj == mp_const_none && i == ARG_power) {
-            args[i].u_int = -1;
-        } else if (args[i].u_obj != MP_OBJ_NULL) {
-            args[i].u_int = machine_pin_get_id(args[i].u_obj);
-        } else {
-            args[i].u_int = default_pins[i - ARG_mdc];
-        }
-    }
-
-    if (args[ARG_phy_addr].u_int < 0x00 || args[ARG_phy_addr].u_int > 0x1f) {
-        mp_raise_ValueError("invalid phy address");
-    }
-
-    if (args[ARG_phy_type].u_int != PHY_LAN8720 && args[ARG_phy_type].u_int != PHY_TLK110) {
-        mp_raise_ValueError("invalid phy type");
-    }
-
-    self->mdc_pin = args[ARG_mdc].u_int;
-    self->mdio_pin = args[ARG_mdio].u_int;
-    self->phy_power_pin = args[ARG_power].u_int;
-    self->phy_addr = args[ARG_phy_addr].u_int;
-    self->phy_type = args[ARG_phy_type].u_int;
-    self->initialized = true;
-    init_lan();
     return MP_OBJ_FROM_PTR(&lan_obj);
 }
 MP_DEFINE_CONST_FUN_OBJ_KW(get_lan_obj, 0, get_lan);
