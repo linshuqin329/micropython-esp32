@@ -17,5 +17,6 @@ extern const mp_obj_type_t machine_uart_type;
 
 void machine_pins_init(void);
 void machine_pins_deinit(void);
+extern const mp_obj_type_t machine_rtc_type;
 
 #endif // MICROPY_INCLUDED_ESP32_MODMACHINE_H
