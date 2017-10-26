@@ -35,7 +35,6 @@
 #include <stdint.h>
 #include <string.h>
 
-
 #include "py/nlr.h"
 #include "py/objlist.h"
 #include "py/runtime.h"
@@ -53,7 +52,6 @@
 #include "modnetwork.h"
 
 #define MODNETWORK_INCLUDE_CONSTANTS (1)
-
 
 NORETURN void _esp_exceptions(esp_err_t e) {
    switch (e) {
