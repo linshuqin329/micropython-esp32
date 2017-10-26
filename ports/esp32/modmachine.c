@@ -47,6 +47,7 @@
 #include "machine_rtc.h"
 
 #if MICROPY_PY_MACHINE
+#define MACHINE_WAKE_DEEPSLEEP (0x04)
 
 extern machine_rtc_config_t machine_rtc_config;
 
