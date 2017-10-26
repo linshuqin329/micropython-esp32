@@ -140,6 +140,7 @@ SRC_C = \
 	modesp.c \
 	moduhashlib.c \
 	espneopixel.c \
+	machine_rtc.c \
 	machine_hw_spi.c \
 	machine_wdt.c \
 	mpthreadport.c \
@@ -242,7 +243,6 @@ ESPIDF_ESP32_O = $(addprefix $(ESPCOMP)/esp32/,\
 	intr_alloc.o \
 	dport_access.o \
 	wifi_init.o \
-	wifi_internal.o \
 	sleep_modes.o \
 	)
 
