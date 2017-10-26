@@ -7,12 +7,14 @@ a task under FreeRTOS.
 
 Supported features include:
 - REPL (Python prompt) over UART0.
-- 16k stack for the MicroPython task and 64k Python heap.
+- 16k stack for the MicroPython task and 96k Python heap.
 - Many of MicroPython's features are enabled: unicode, arbitrary-precision
   integers, single-precision floats, complex numbers, frozen bytecode, as
   well as many of the internal modules.
-- Internal filesystem using the flash (currently 256k in size).
-- The machine module with basic GPIO and bit-banging I2C, SPI support.
+- Internal filesystem using the flash (currently 2M in size).
+- The machine module with GPIO, UART, SPI, software I2C, ADC, DAC, PWM,
+  TouchPad, WDT and Timer.
+- The network module with WLAN (WiFi) support.
 
 Development of this ESP32 port was sponsored in part by Microbric Pty Ltd.
 
@@ -30,6 +32,13 @@ Follow the guide "Setting Up ESP-IDF", for Windows, Mac or Linux.  You
 only need to perform up to "Step 2" of the guide, by which stage you
 should have installed the cross-compile and cloned the ESP-IDF repository.
 
+If you are on a Windows machine then the
+[Windows Subsystem for Linux](https://msdn.microsoft.com/en-au/commandline/wsl/install_guide)
+is the most efficient way to install the ESP32 toolchain and build the project.
+If you use WSL then follow the
+[Linux guidelines](http://esp-idf.readthedocs.io/en/latest/get-started/linux-setup.html)
+for the ESP-IDF instead of the Windows ones.
+
 Be advised that the ESP-IDF is still undergoing changes and only some
 versions are supported.  To find which build is compatible refer to the line
 in the makefile containing the following:
@@ -37,12 +46,21 @@ in the makefile containing the following:
 ESPIDF_SUPHASH := <Current supported ESP-IDF commit hash>
 ```
 After finishing "Step 2" you can roll back your current build of
-the ESP-IDF using:
+the ESP-IDF (and update the submodules accordingly) using:
 ```
 $ git checkout <Current supported ESP-IDF commit hash>
+$ git submodule update --recursive
 ```
 Note that you will get a warning when building the code if the ESP-IDF
 version is incorrect.
+
+The Espressif ESP-IDF instructions above only install pyserial for Python 2,
+so if you're running Python 3 or a non-system Python you'll also need to
+install `pyserial` (or `esptool`) so that the Makefile can flash the board
+and set parameters:
+```bash
+$ pip install pyserial
+```
 
 Once everything is set up you should have a functioning toolchain with
 prefix xtensa-esp32-elf- (or otherwise if you configured it differently)
@@ -83,9 +101,17 @@ this repository):
 $ make -C mpy-cross
 ```
 
+The ESP32 port has a dependency on Berkeley DB, which is an external
+dependency (git submodule). You'll need to have git initialize that
+module using the commands:
+```bash
+$ git submodule init lib/berkeley-db-1.xx
+$ git submodule update
+```
+
 Then to build MicroPython for the ESP32 run:
 ```bash
-$ cd esp32
+$ cd ports/esp32
 $ make
 ```
 This will produce binary firmware images in the `build/` subdirectory
@@ -96,6 +122,13 @@ mode and connected to a serial port on your PC.  Refer to the documentation
 for your particular ESP32 module for how to do this.  The serial port and
 flash settings are set in the `Makefile`, and can be overridden in your
 local `makefile`; see above for more details.
+
+You will also need to have user permissions to access the /dev/ttyUSB0 device.
+On Linux, you can enable this by adding your user to the `dialout` group,
+and rebooting or logging out and in again.
+```bash
+$ sudo adduser <username> dialout
+```
 
 If you are installing MicroPython to your module for the first time, or
 after installing any other firmware, you should first erase the flash
@@ -118,7 +151,7 @@ You can get a prompt via the serial port, via UART0, which is the same UART
 that is used for programming the firmware.  The baudrate for the REPL is
 115200 and you can use a command such as:
 ```bash
-$ picocom /dev/ttyUSB0
+$ picocom -b 115200 /dev/ttyUSB0
 ```
 
 Configuring the WiFi and using the board
@@ -160,9 +193,9 @@ import machine
 antenna = machine.Pin(16, machine.Pin.OUT, value=0)
 ```
 
-
 Troubleshooting
 ---------------
 
-* Continuous reboots after programming: Ensure FLASH_MODE is correct for your board (e.g. ESP-WROOM-32 should be DIO). Perform a `make clean`, rebuild, redeploy.
-
+* Continuous reboots after programming: Ensure FLASH_MODE is correct for your
+  board (e.g. ESP-WROOM-32 should be DIO). Then perform a `make clean`, rebuild,
+  redeploy.
