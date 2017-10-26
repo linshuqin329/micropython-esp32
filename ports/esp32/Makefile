@@ -29,7 +29,7 @@ ESPCOMP = $(ESPIDF)/components
 ESPTOOL ?= $(ESPCOMP)/esptool_py/esptool/esptool.py
 
 # verify the ESP IDF version
-ESPIDF_SUPHASH := 9a26296a0e88a4c3ae27e9c848be970946fff87e
+ESPIDF_SUPHASH := 2c95a77cf93781f296883d5dbafcdc18e4389656
 ESPIDF_CURHASH := $(shell git -C $(ESPIDF) show -s --pretty=format:'%H')
 ifneq ($(ESPIDF_CURHASH),$(ESPIDF_SUPHASH))
 $(info ** WARNING **)
@@ -142,6 +142,7 @@ SRC_C = \
 	moduhashlib.c \
 	espneopixel.c \
 	machine_hw_spi.c \
+	machine_wdt.c \
 	mpthreadport.c \
 	$(SRC_MOD)
 
@@ -214,6 +215,7 @@ ESPIDF_DRIVER_O = $(addprefix $(ESPCOMP)/driver/,\
 
 $(BUILD)/$(ESPCOMP)/esp32/dport_access.o: CFLAGS += -Wno-array-bounds
 ESPIDF_ESP32_O = $(addprefix $(ESPCOMP)/esp32/,\
+	brownout.o \
 	panic.o \
 	esp_timer.o \
 	esp_timer_esp32.o \
@@ -240,6 +242,7 @@ ESPIDF_ESP32_O = $(addprefix $(ESPCOMP)/esp32/,\
 	intr_alloc.o \
 	dport_access.o \
 	wifi_init.o \
+	wifi_internal.o \
 	)
 
 ESPIDF_HEAP_O = $(addprefix $(ESPCOMP)/heap/,\
@@ -284,6 +287,7 @@ ESPIDF_EXPAT_O = $(addprefix $(ESPCOMP)/expat/,\
 
 ESPIDF_PTHREAD_O = $(addprefix $(ESPCOMP)/pthread/,\
 	pthread.o \
+	pthread_local_storage.o \
 	)
 
 # Assembler .S files need only basic flags, and in particular should not have
@@ -450,6 +454,7 @@ ESPIDF_LWIP_O = $(addprefix $(ESPCOMP)/lwip/,\
 	port/freertos/sys_arch.o \
 	port/netif/wlanif.o \
 	port/netif/ethernetif.o \
+	port/vfs_lwip.o \
 	)
 
 ESPIDF_MBEDTLS_O = $(addprefix $(ESPCOMP)/mbedtls/,\
@@ -618,7 +623,7 @@ APP_LD_ARGS += -L$(dir $(LIBSTDCXX_FILE_NAME)) -lstdc++
 APP_LD_ARGS += $(ESPCOMP)/newlib/lib/libc.a
 APP_LD_ARGS += $(ESPCOMP)/newlib/lib/libm.a
 APP_LD_ARGS += $(ESPCOMP)/esp32/libhal.a
-APP_LD_ARGS += -L$(ESPCOMP)/esp32/lib -lcore -lnet80211 -lphy -lrtc -lpp -lwpa -lsmartconfig -lcoexist
+APP_LD_ARGS += -L$(ESPCOMP)/esp32/lib -lcore -lnet80211 -lphy -lrtc -lpp -lwpa -lsmartconfig -lcoexist -lwps -lwpa2
 APP_LD_ARGS += $(OBJ)
 APP_LD_ARGS += --end-group
 
