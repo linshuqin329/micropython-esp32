@@ -140,7 +140,6 @@ SRC_C = \
 	modesp.c \
 	moduhashlib.c \
 	espneopixel.c \
-	machine_rtc.c \
 	machine_hw_spi.c \
 	machine_wdt.c \
 	mpthreadport.c \
