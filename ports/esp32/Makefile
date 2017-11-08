@@ -82,6 +82,8 @@ INC_ESPCOMP += -I$(ESPCOMP)/wpa_supplicant/include
 INC_ESPCOMP += -I$(ESPCOMP)/wpa_supplicant/port/include
 INC_ESPCOMP += -I$(ESPCOMP)/ethernet/include
 INC_ESPCOMP += -I$(ESPCOMP)/app_trace/include
+INC_ESPCOMP += -I$(ESPCOMP)/bt/include
+INC_ESPCOMP += -I$(ESPCOMP)/bt/bluedroid/api/include
 
 CFLAGS_BASE = -std=gnu99 -Os -ffunction-sections -fdata-sections -fstrict-volatile-bitfields -mlongcalls -nostdlib -Wall -Werror -Wno-error=unused-function -Wno-error=unused-but-set-variable -Wno-error=unused-variable -Wno-error=deprecated-declarations -DMBEDTLS_CONFIG_FILE='"mbedtls/esp_config.h"' -DHAVE_CONFIG_H -DESP_PLATFORM
 CFLAGS = $(CFLAGS_BASE) $(INC) $(INC_ESPCOMP)
@@ -137,6 +139,7 @@ SRC_C = \
 	modmachine.c \
 	modnetwork.c \
 	network_lan.c \
+	network_bluetooth.c \
 	modsocket.c \
 	modesp.c \
 	moduhashlib.c \
