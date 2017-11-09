@@ -32,6 +32,7 @@
 
 // Generic
 #include <string.h>
+#include <unistd.h>
 
 // MicroPython
 #include "py/runtime.h"
@@ -43,6 +44,7 @@
 #include "esp_gap_ble_api.h"
 #include "esp_gatts_api.h"
 #include "esp_gattc_api.h"
+
 
 #define CALLBACK_QUEUE_SIZE 10
 
@@ -399,44 +401,56 @@ STATIC mp_obj_t network_bt_init(mp_obj_t self_in) {
     } else {
         xQueueReset(read_write_q);
     }
+    printf("past queue initializations\n");
 
     if (self->state == NETWORK_BT_STATE_DEINIT) {
 
         self->state = NETWORK_BT_STATE_INIT;
 
         esp_bt_controller_config_t bt_cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+        printf("before esp_bt_controller_init\n");
         if (esp_bt_controller_init(&bt_cfg) != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_bt_controller_init() failed");
         }
+        printf("after esp_bt_controller_init\n");
+        sleep(1);
 
+        printf("before esp_bt_controller_enable\n");
         if (esp_bt_controller_enable(ESP_BT_MODE_BTDM) != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_bt_controller_enable() failed");
         }
 
+        printf("before esp_bluedroid_init\n");
         if (esp_bluedroid_init() != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_bluedroid_init() failed");
         }
 
+        printf("before esp_bluedroid_enable\n");
         if (esp_bluedroid_enable() != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_bluedroid_enable() failed");
         }
 
+        printf("before esp_ble_gatts_register_callback\n");
         if (esp_ble_gatts_register_callback(network_bt_gatts_event_handler) != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_ble_gatts_register_callback() failed");
         }
 
+        printf("before esp_ble_gattc_register_callback\n");
         if (esp_ble_gattc_register_callback(network_bt_gattc_event_handler) != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_ble_gattc_register_callback() failed");
         }
 
+        printf("before esp_ble_gap_register_callback\n");
         if (esp_ble_gap_register_callback(network_bt_gap_event_handler) != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_ble_gap_register_callback() failed");
         }
 
+        printf("before esp_ble_gatts_app_register\n");
         if (esp_ble_gatts_app_register(0) != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_ble_gatts_app_register() failed");
         }
 
+        printf("before esp_ble_gattc_app_register\n");
         if (esp_ble_gattc_app_register(1) != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_ble_gattc_app_register() failed");
         }
@@ -447,12 +461,15 @@ STATIC mp_obj_t network_bt_init(mp_obj_t self_in) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(network_bt_init_obj, network_bt_init);
 
 STATIC mp_obj_t network_bt_make_new(const mp_obj_type_t *type_in, size_t n_args, size_t n_kw, const mp_obj_t *all_args) {
+    printf("enter network_bt_make_new\n");
     network_bt_obj_t *self = network_bt_get_singleton();
     if (n_args != 0 || n_kw != 0) {
         mp_raise_TypeError("Constructor takes no arguments");
     }
 
+    printf("before network_bt_init\n");
     network_bt_init(self);
+    printf("after network_bt_init\n");
     return MP_OBJ_FROM_PTR(self);
 }
 
@@ -460,20 +477,20 @@ STATIC mp_obj_t network_bt_make_new(const mp_obj_type_t *type_in, size_t n_args,
 
 STATIC const mp_rom_map_elem_t network_bt_locals_dict_table[] = {
     // instance methods
-    
+
     { MP_ROM_QSTR(MP_QSTR_init), MP_ROM_PTR(&network_bt_init_obj) },
     /*
-    { MP_ROM_QSTR(MP_QSTR_ble_settings), MP_ROM_PTR(&network_bt_ble_settings_obj) },
-    { MP_ROM_QSTR(MP_QSTR_ble_adv_enable), MP_ROM_PTR(&network_bt_ble_adv_enable_obj) },
-    { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&network_bt_deinit_obj) },
-    { MP_ROM_QSTR(MP_QSTR_connect), MP_ROM_PTR(&network_bt_connect_obj) },
-    { MP_ROM_QSTR(MP_QSTR_Service), MP_ROM_PTR(&network_bt_gatts_service_type) },
-    { MP_ROM_QSTR(MP_QSTR_services), MP_ROM_PTR(&network_bt_services_obj) },
-    { MP_ROM_QSTR(MP_QSTR_conns), MP_ROM_PTR(&network_bt_conns_obj) },
-    { MP_ROM_QSTR(MP_QSTR_callback), MP_ROM_PTR(&network_bt_callback_obj) },
-    { MP_ROM_QSTR(MP_QSTR_scan_start), MP_ROM_PTR(&network_bt_scan_start_obj) },
-    { MP_ROM_QSTR(MP_QSTR_scan_stop), MP_ROM_PTR(&network_bt_scan_stop_obj) },
-    { MP_ROM_QSTR(MP_QSTR_is_scanning), MP_ROM_PTR(&network_bt_is_scanning_obj) },
+       { MP_ROM_QSTR(MP_QSTR_ble_settings), MP_ROM_PTR(&network_bt_ble_settings_obj) },
+       { MP_ROM_QSTR(MP_QSTR_ble_adv_enable), MP_ROM_PTR(&network_bt_ble_adv_enable_obj) },
+       { MP_ROM_QSTR(MP_QSTR_deinit), MP_ROM_PTR(&network_bt_deinit_obj) },
+       { MP_ROM_QSTR(MP_QSTR_connect), MP_ROM_PTR(&network_bt_connect_obj) },
+       { MP_ROM_QSTR(MP_QSTR_Service), MP_ROM_PTR(&network_bt_gatts_service_type) },
+       { MP_ROM_QSTR(MP_QSTR_services), MP_ROM_PTR(&network_bt_services_obj) },
+       { MP_ROM_QSTR(MP_QSTR_conns), MP_ROM_PTR(&network_bt_conns_obj) },
+       { MP_ROM_QSTR(MP_QSTR_callback), MP_ROM_PTR(&network_bt_callback_obj) },
+       { MP_ROM_QSTR(MP_QSTR_scan_start), MP_ROM_PTR(&network_bt_scan_start_obj) },
+       { MP_ROM_QSTR(MP_QSTR_scan_stop), MP_ROM_PTR(&network_bt_scan_stop_obj) },
+       { MP_ROM_QSTR(MP_QSTR_is_scanning), MP_ROM_PTR(&network_bt_is_scanning_obj) },
 
     // class constants
 

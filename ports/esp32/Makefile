@@ -106,6 +106,7 @@ INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/stack/gatt/include/
 INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/btc/profile/esp/blufi/include/
 INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/stack/l2cap/include/
 INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/stack/gap/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/stack/smp/include/
 endif
 
 CFLAGS_BASE = -std=gnu99 -Os -ffunction-sections -fdata-sections -fstrict-volatile-bitfields -mlongcalls -nostdlib -Wall -Werror -Wno-error=unused-function -Wno-error=unused-but-set-variable -Wno-error=unused-variable -Wno-error=deprecated-declarations -DMBEDTLS_CONFIG_FILE='"mbedtls/esp_config.h"' -DHAVE_CONFIG_H -DESP_PLATFORM
@@ -350,6 +351,21 @@ ESPIDF_BT_O = $(addprefix $(ESPCOMP)/bt/,\
 	bluedroid/stack/btm/btm_ble_cont_energy.o \
 	bluedroid/bta/dm/bta_dm_pm.o \
 	)
+## Only needed for SMP
+
+#	bluedroid/stack/smp/smp_api.o \
+#	bluedroid/stack/btm/btm_ble_privacy.o \
+#	bluedroid/btc/core/btc_ble_storage.o \
+#	bluedroid/stack/smp/smp_utils.o \
+#	bluedroid/stack/smp/smp_act.o \
+#	bluedroid/stack/smp/smp_cmac.o \
+#	bluedroid/stack/smp/smp_main.o \
+#	bluedroid/stack/smp/smp_l2c.o \
+#	bluedroid/stack/smp/p_256_curvepara.o \
+#	bluedroid/stack/smp/smp_br_main.o \
+#	bluedroid/stack/smp/smp_keys.o \
+#	bluedroid/stack/smp/p_256_ecc_pp.o \
+#	bluedroid/stack/smp/aes.o \
 
 
 
