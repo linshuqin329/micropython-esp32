@@ -51,24 +51,25 @@ INC += -I$(TOP)/lib/netutils
 INC += -I$(TOP)/lib/timeutils
 INC += -I$(BUILD)
 
+INC_ESPCOMP_BASE += -I$(ESPCOMP)/heap/include
+INC_ESPCOMP_BASE += -I$(ESPCOMP)/esp32/include
+INC_ESPCOMP_BASE += -I$(ESPCOMP)/soc/include
+INC_ESPCOMP_BASE += -I$(ESPCOMP)/soc/esp32/include
+INC_ESPCOMP_BASE += -I$(ESPCOMP)/freertos/include
+INC_ESPCOMP_BASE += -I$(ESPCOMP)/driver/include
+INC_ESPCOMP_BASE += -I$(ESPCOMP)/driver/include/driver
+INC_ESPCOMP_BASE += -I$(ESPCOMP)/log/include
+INC_ESPCOMP_BASE += -I$(ESPCOMP)/nvs_flash/include
+
 INC_ESPCOMP += -I$(ESPCOMP)/bootloader_support/include
-INC_ESPCOMP += -I$(ESPCOMP)/driver/include
-INC_ESPCOMP += -I$(ESPCOMP)/driver/include/driver
 INC_ESPCOMP += -I$(ESPCOMP)/nghttp/port/include
 INC_ESPCOMP += -I$(ESPCOMP)/nghttp/nghttp2/lib/includes
-INC_ESPCOMP += -I$(ESPCOMP)/esp32/include
-INC_ESPCOMP += -I$(ESPCOMP)/soc/include
-INC_ESPCOMP += -I$(ESPCOMP)/soc/esp32/include
 INC_ESPCOMP += -I$(ESPCOMP)/ethernet/include
 INC_ESPCOMP += -I$(ESPCOMP)/expat/include/expat
 INC_ESPCOMP += -I$(ESPCOMP)/expat/port/include
-INC_ESPCOMP += -I$(ESPCOMP)/heap/include
 INC_ESPCOMP += -I$(ESPCOMP)/json/include
 INC_ESPCOMP += -I$(ESPCOMP)/json/port/include
-INC_ESPCOMP += -I$(ESPCOMP)/log/include
 INC_ESPCOMP += -I$(ESPCOMP)/newlib/include
-INC_ESPCOMP += -I$(ESPCOMP)/nvs_flash/include
-INC_ESPCOMP += -I$(ESPCOMP)/freertos/include
 INC_ESPCOMP += -I$(ESPCOMP)/tcpip_adapter/include
 INC_ESPCOMP += -I$(ESPCOMP)/lwip/include/lwip
 INC_ESPCOMP += -I$(ESPCOMP)/lwip/include/lwip/port
@@ -83,11 +84,32 @@ INC_ESPCOMP += -I$(ESPCOMP)/wpa_supplicant/include
 INC_ESPCOMP += -I$(ESPCOMP)/wpa_supplicant/port/include
 INC_ESPCOMP += -I$(ESPCOMP)/ethernet/include
 INC_ESPCOMP += -I$(ESPCOMP)/app_trace/include
-INC_ESPCOMP += -I$(ESPCOMP)/bt/include
-INC_ESPCOMP += -I$(ESPCOMP)/bt/bluedroid/api/include
+
+#xbt
+ifeq ($(MICROPY_ESP32_BLUETOOTH),1)
+INC_ESPCOMP_BT  = -I$(ESPCOMP)/bt/include
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/api/include
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/bta/dm/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/btc/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/stack/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/osi/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/bta/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/btc/profile/std/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/btc/profile/esp/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/device/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/btcore/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/hci/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/osi/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/bta/sys/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/stack/gatt/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/btc/profile/esp/blufi/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/stack/l2cap/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/stack/gap/include/
+endif
 
 CFLAGS_BASE = -std=gnu99 -Os -ffunction-sections -fdata-sections -fstrict-volatile-bitfields -mlongcalls -nostdlib -Wall -Werror -Wno-error=unused-function -Wno-error=unused-but-set-variable -Wno-error=unused-variable -Wno-error=deprecated-declarations -DMBEDTLS_CONFIG_FILE='"mbedtls/esp_config.h"' -DHAVE_CONFIG_H -DESP_PLATFORM
-CFLAGS = $(CFLAGS_BASE) $(INC) $(INC_ESPCOMP)
+CFLAGS = $(CFLAGS_BASE) $(INC) $(INC_ESPCOMP_BASE) $(INC_ESPCOMP)
 CFLAGS += -DIDF_VER=\"$(IDF_VER)\"
 CFLAGS += $(CFLAGS_MOD)
 
@@ -98,7 +120,7 @@ endif
 
 
 # this is what ESPIDF uses for c++ compilation
-CXXFLAGS = -std=gnu++11 -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections -fstrict-volatile-bitfields -mlongcalls -nostdlib -Wall -Werror -Wno-error=unused-function -Wno-error=unused-but-set-variable -Wno-error=unused-variable -Wno-error=deprecated-declarations -DESP_PLATFORM $(INC) $(INC_ESPCOMP)
+CXXFLAGS = -std=gnu++11 -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections -fstrict-volatile-bitfields -mlongcalls -nostdlib -Wall -Werror -Wno-error=unused-function -Wno-error=unused-but-set-variable -Wno-error=unused-variable -Wno-error=deprecated-declarations -DESP_PLATFORM $(INC) $(INC_ESPCOMP_BASE) $(INC_ESPCOMP)
 
 LDFLAGS = -nostdlib -Map=$(@:.elf=.map) --cref
 LDFLAGS += --gc-sections -static -EL
@@ -146,7 +168,6 @@ SRC_C = \
 	modmachine.c \
 	modnetwork.c \
 	network_lan.c \
-	network_bt.c \
 	modsocket.c \
 	modesp.c \
 	moduhashlib.c \
@@ -155,6 +176,11 @@ SRC_C = \
 	machine_wdt.c \
 	mpthreadport.c \
 	$(SRC_MOD)
+
+#xbt
+ifeq ($(MICROPY_ESP32_BLUETOOTH),1)
+SRC_C += network_bt.c
+endif
 
 EXTMOD_SRC_C = $(addprefix extmod/,\
 	modonewire.c \
@@ -222,6 +248,110 @@ ESPIDF_DRIVER_O = $(addprefix $(ESPCOMP)/driver/,\
 	spi_common.o \
 	rtc_module.o \
 	)
+
+# xbt
+$(BUILD)/$(ESPCOMP)/bt/%.o: CFLAGS = $(CFLAGS_BASE) $(INC) $(INC_ESPCOMP_BASE) $(INC_ESPCOMP_BT)
+ESPIDF_BT_O = $(addprefix $(ESPCOMP)/bt/,\
+	bt.o \
+	bluedroid/btc/profile/esp/blufi/blufi_prf.o \
+	bluedroid/api/esp_bt_main.o \
+	bluedroid/api/esp_gatts_api.o \
+	bluedroid/api/esp_gattc_api.o \
+	bluedroid/api/esp_gap_ble_api.o \
+	bluedroid/btc/core/btc_main.o \
+	bluedroid/osi/future.o \
+	bluedroid/btc/core/btc_task.o \
+	bluedroid/btc/core/btc_dm.o \
+	bluedroid/osi/alarm.o \
+	bluedroid/main/bte_main.o \
+	bluedroid/btc/core/btc_config.o \
+	bluedroid/bta/gatt/bta_gatt_common.o \
+	bluedroid/osi/semaphore.o \
+	bluedroid/btc/profile/std/gap/btc_gap_ble.o \
+	bluedroid/btc/core/btc_dev.o \
+	bluedroid/btc/profile/std/gatt/btc_gatts.o \
+	bluedroid/btc/profile/std/gatt/btc_gattc.o \
+	bluedroid/btc/core/btc_manage.o \
+	bluedroid/btc/profile/esp/blufi/blufi_protocol.o \
+	bluedroid/btc/core/btc_alarm.o \
+	bluedroid/btc/core/btc_storage.o \
+	bluedroid/osi/mutex.o \
+	bluedroid/hci/hci_layer.o \
+	bluedroid/osi/osi.o \
+	bluedroid/stack/btu/btu_init.o \
+	bluedroid/osi/config.o \
+	bluedroid/bta/dm/bta_dm_act.o \
+	bluedroid/bta/sys/bta_sys_main.o \
+	bluedroid/stack/btm/btm_ble_multi_adv.o \
+	bluedroid/stack/btu/btu_task.o \
+	bluedroid/stack/btm/btm_devctl.o \
+	bluedroid/osi/hash_map.o \
+	bluedroid/btc/profile/std/gatt/btc_gatt_util.o \
+	bluedroid/btcore/bdaddr.o \
+	bluedroid/btc/core/btc_util.o \
+	bluedroid/osi/list.o \
+	bluedroid/osi/fixed_queue.o \
+	bluedroid/osi/allocator.o \
+	bluedroid/hci/buffer_allocator.o \
+	bluedroid/hci/hci_hal_h4.o \
+	bluedroid/hci/packet_fragmenter.o \
+	bluedroid/stack/btm/btm_main.o \
+	bluedroid/stack/l2cap/l2c_main.o \
+	bluedroid/stack/gatt/gatt_main.o \
+	bluedroid/osi/hash_functions.o \
+	bluedroid/stack/btm/btm_ble_gap.o \
+	bluedroid/stack/btm/btm_inq.o \
+	bluedroid/main/bte_init.o \
+	bluedroid/stack/btu/btu_hcif.o \
+	bluedroid/stack/btm/btm_ble_addr.o \
+	bluedroid/stack/btm/btm_acl.o \
+	bluedroid/stack/gatt/gatt_utils.o \
+	bluedroid/stack/l2cap/l2c_link.o \
+	bluedroid/device/controller.o \
+	bluedroid/stack/hcic/hcicmds.o \
+	bluedroid/stack/l2cap/l2c_utils.o \
+	bluedroid/stack/btm/btm_ble_bgconn.o \
+	bluedroid/bta/dm/bta_dm_api.o \
+	bluedroid/stack/l2cap/l2c_ble.o \
+	bluedroid/stack/btm/btm_pm.o \
+	bluedroid/stack/btm/btm_sec.o \
+	bluedroid/bta/gatt/bta_gattc_utils.o \
+	bluedroid/bta/gatt/bta_gattc_api.o \
+	bluedroid/stack/gatt/gatt_cl.o \
+	bluedroid/bta/gatt/bta_gatts_main.o \
+	bluedroid/stack/gatt/gatt_auth.o \
+	bluedroid/stack/gatt/att_protocol.o \
+	bluedroid/stack/gatt/gatt_attr.o \
+	bluedroid/stack/gatt/gatt_api.o \
+	bluedroid/stack/l2cap/l2c_api.o \
+	bluedroid/stack/gatt/gatt_sr.o \
+	bluedroid/stack/gatt/gatt_db.o \
+	bluedroid/stack/hcic/hciblecmds.o \
+	bluedroid/stack/gap/gap_ble.o \
+	bluedroid/stack/btm/btm_ble.o \
+	bluedroid/stack/btm/btm_ble_adv_filter.o \
+	bluedroid/stack/btm/btm_dev.o \
+	bluedroid/hci/hci_packet_factory.o \
+	bluedroid/hci/hci_packet_parser.o \
+	bluedroid/stack/btm/btm_ble_batchscan.o \
+	bluedroid/bta/gatt/bta_gatts_api.o \
+	bluedroid/bta/gatt/bta_gatts_act.o \
+	bluedroid/btif/bta_gatts_co.o \
+	bluedroid/bta/gatt/bta_gatts_utils.o \
+	bluedroid/bta/sys/bta_sys_conn.o \
+	bluedroid/stack/l2cap/l2c_csm.o \
+	bluedroid/stack/gap/gap_api.o \
+	bluedroid/bta/gatt/bta_gattc_main.o \
+	bluedroid/bta/gatt/bta_gattc_act.o \
+	bluedroid/bta/gatt/bta_gattc_cache.o \
+	bluedroid/bta/dm/bta_dm_main.o \
+	bluedroid/bta/dm/bta_dm_cfg.o \
+	bluedroid/btif/bta_dm_co.o \
+	bluedroid/stack/btm/btm_ble_cont_energy.o \
+	bluedroid/bta/dm/bta_dm_pm.o \
+	)
+
+
 
 $(BUILD)/$(ESPCOMP)/esp32/dport_access.o: CFLAGS += -Wno-array-bounds
 ESPIDF_ESP32_O = $(addprefix $(ESPCOMP)/esp32/,\
@@ -309,7 +439,7 @@ $(BUILD)/$(ESPCOMP)/freertos/portasm.o: CFLAGS = $(CFLAGS_ASM)
 $(BUILD)/$(ESPCOMP)/freertos/xtensa_context.o: CFLAGS = $(CFLAGS_ASM)
 $(BUILD)/$(ESPCOMP)/freertos/xtensa_intr_asm.o: CFLAGS = $(CFLAGS_ASM)
 $(BUILD)/$(ESPCOMP)/freertos/xtensa_vectors.o: CFLAGS = $(CFLAGS_ASM)
-$(BUILD)/$(ESPCOMP)/freertos/%.o: CFLAGS = $(CFLAGS_BASE) -I. $(INC_ESPCOMP) -I$(ESPCOMP)/freertos/include/freertos
+$(BUILD)/$(ESPCOMP)/freertos/%.o: CFLAGS = $(CFLAGS_BASE) -I. $(INC_ESPCOMP_BASE) $(INC_ESPCOMP) -I$(ESPCOMP)/freertos/include/freertos
 ESPIDF_FREERTOS_O = $(addprefix $(ESPCOMP)/freertos/,\
 	croutine.o \
 	event_groups.o \
@@ -598,6 +728,10 @@ OBJ_ESPIDF += $(addprefix $(BUILD)/, $(ESPIDF_NVS_FLASH_O))
 OBJ_ESPIDF += $(addprefix $(BUILD)/, $(ESPIDF_OPENSSL_O))
 OBJ_ESPIDF += $(addprefix $(BUILD)/, $(ESPIDF_SPI_FLASH_O))
 OBJ_ESPIDF += $(addprefix $(BUILD)/, $(ESPIDF_WPA_SUPPLICANT_O))
+
+ifeq ($(MICROPY_ESP32_BLUETOOTH),1)
+OBJ_ESPIDF += $(addprefix $(BUILD)/, $(ESPIDF_BT_O))
+endif
 ################################################################################
 # Main targets
 
@@ -623,6 +757,7 @@ erase:
 ################################################################################
 # Declarations to build the application
 
+$(BUILD)/%.o: CFLAGS += $(INC_ESPCOMP_BT) 
 OBJ = $(OBJ_MP) $(OBJ_ESPIDF)
 
 APP_LD_ARGS =
@@ -636,6 +771,12 @@ APP_LD_ARGS += $(ESPCOMP)/esp32/libhal.a
 APP_LD_ARGS += -L$(ESPCOMP)/esp32/lib -lcore -lnet80211 -lphy -lrtc -lpp -lwpa -lsmartconfig -lcoexist -lwps -lwpa2
 APP_LD_ARGS += $(OBJ)
 APP_LD_ARGS += --end-group
+
+#xbt
+ifeq ($(MICROPY_ESP32_BLUETOOTH),1)
+APP_LD_ARGS += $(ESPCOMP)/bt/lib/libbtdm_app.a
+endif
+
 
 $(BUILD)/esp32_out.ld: sdkconfig.h
 	$(Q)$(CC) -I. -C -P -x c -E $(ESPCOMP)/esp32/ld/esp32.ld -o $@
@@ -727,7 +868,8 @@ $(BUILD)/bootloader.elf: $(BOOTLOADER_OBJ)
 # Declarations to build the partitions
 
 PYTHON2 ?= python2
-PART_SRC = $(ESPCOMP)/partition_table/partitions_singleapp.csv
+#PART_SRC = $(ESPCOMP)/partition_table/partitions_singleapp.csv
+PART_SRC = ./partitions.csv
 
 $(BUILD)/partitions.bin: $(PART_SRC)
 	$(ECHO) "Create $@"

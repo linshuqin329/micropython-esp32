@@ -40,6 +40,7 @@
 #include "py/runtime.h"
 #include "py/mphal.h"
 #include "py/mperrno.h"
+#include "py/obj.h"
 #include "netutils.h"
 #include "esp_wifi.h"
 #include "esp_wifi_types.h"
@@ -52,7 +53,7 @@
 #include "modnetwork.h"
 
 #if (MICROPY_ESP32_BLUETOOTH)
-extern const mp_obj_type_t network_bluetooth_type;
+extern const mp_obj_type_t network_bt_type;
 #endif
 
 #define MODNETWORK_INCLUDE_CONSTANTS (1)
@@ -541,7 +542,7 @@ STATIC mp_obj_t esp_phy_mode(size_t n_args, const mp_obj_t *args) {
 STATIC MP_DEFINE_CONST_FUN_OBJ_VAR_BETWEEN(esp_phy_mode_obj, 0, 1, esp_phy_mode);
 
 
-STATIC const mp_map_elem_t mp_module_network_globals_table[] = {
+STATIC const mp_rom_map_elem_t mp_module_network_globals_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_network) },
     { MP_OBJ_NEW_QSTR(MP_QSTR___init__), (mp_obj_t)&esp_initialize_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_WLAN), (mp_obj_t)&get_wlan_obj },
@@ -549,7 +550,7 @@ STATIC const mp_map_elem_t mp_module_network_globals_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR_phy_mode), (mp_obj_t)&esp_phy_mode_obj },
 
 #if (MICROPY_ESP32_BLUETOOTH)
-    { MP_ROM_QSTR(MP_QSTR_Bluetooth), MP_ROM_PTR(&network_bluetooth_type) },
+    { MP_ROM_QSTR(MP_QSTR_Bluetooth), MP_ROM_PTR(&network_bt_type) },
 #endif
 
 #if MODNETWORK_INCLUDE_CONSTANTS
