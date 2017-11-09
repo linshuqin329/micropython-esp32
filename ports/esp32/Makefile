@@ -795,7 +795,7 @@ endif
 
 
 $(BUILD)/esp32_out.ld: sdkconfig.h
-	$(Q)$(CC) -I. -C -P -x c -E $(ESPCOMP)/esp32/ld/esp32.ld -o $@
+	$(Q)$(CC) -I. -C -P -x c -E $(ESPCOMP)/esp32/ld/esp32.ld -o $@ -DMICROPY_ESP32_BLUETOOTH=$(MICROPY_ESP32_BLUETOOTH)
 
 $(BUILD)/application.bin: $(BUILD)/application.elf
 	$(ECHO) "Create $@"
