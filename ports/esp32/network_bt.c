@@ -430,30 +430,39 @@ STATIC mp_obj_t network_bt_init(mp_obj_t self_in) {
             mp_raise_msg(&mp_type_OSError, "esp_bluedroid_enable() failed");
         }
 
+
+#if 0 
         printf("before esp_ble_gatts_register_callback\n");
         if (esp_ble_gatts_register_callback(network_bt_gatts_event_handler) != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_ble_gatts_register_callback() failed");
         }
+#endif
 
+#if 0
         printf("before esp_ble_gattc_register_callback\n");
         if (esp_ble_gattc_register_callback(network_bt_gattc_event_handler) != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_ble_gattc_register_callback() failed");
         }
+#endif
 
         printf("before esp_ble_gap_register_callback\n");
         if (esp_ble_gap_register_callback(network_bt_gap_event_handler) != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_ble_gap_register_callback() failed");
         }
 
+#if 0 
         printf("before esp_ble_gatts_app_register\n");
         if (esp_ble_gatts_app_register(0) != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_ble_gatts_app_register() failed");
         }
+#endif
 
+#if 0 
         printf("before esp_ble_gattc_app_register\n");
         if (esp_ble_gattc_app_register(1) != ESP_OK) {
             mp_raise_msg(&mp_type_OSError, "esp_ble_gattc_app_register() failed");
         }
+#endif
 
     }
     return mp_const_none;
