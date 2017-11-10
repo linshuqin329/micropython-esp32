@@ -337,9 +337,10 @@ STATIC mp_obj_t esp_ifconfig(size_t n_args, const mp_obj_t *args) {
     wlan_if_obj_t *self = MP_OBJ_TO_PTR(args[0]);
     tcpip_adapter_ip_info_t info;
     tcpip_adapter_dns_info_t dns_info;
-    tcpip_adapter_get_ip_info(self->if_id, &info);
-    tcpip_adapter_get_dns_info(self->if_id, TCPIP_ADAPTER_DNS_MAIN, &dns_info);
     if (n_args == 1) {
+        tcpip_adapter_get_ip_info(self->if_id, &info);
+        tcpip_adapter_get_dns_info(self->if_id, TCPIP_ADAPTER_DNS_MAIN, &dns_info);
+        usleep(200000);
         // get
         mp_obj_t tuple[4] = {
             netutils_format_ipv4_addr((uint8_t*)&info.ip, NETUTILS_BIG),
