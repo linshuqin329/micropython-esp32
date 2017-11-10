@@ -107,6 +107,7 @@ INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/btc/profile/esp/blufi/include/
 INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/stack/l2cap/include/
 INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/stack/gap/include/
 INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/stack/smp/include/
+INC_ESPCOMP_BT += -I$(ESPCOMP)/bt/bluedroid/stack/sdp/include/
 endif
 
 CFLAGS_BASE = -std=gnu99 -Os -ffunction-sections -fdata-sections -fstrict-volatile-bitfields -mlongcalls -nostdlib -Wall -Werror -Wno-error=unused-function -Wno-error=unused-but-set-variable -Wno-error=unused-variable -Wno-error=deprecated-declarations -DMBEDTLS_CONFIG_FILE='"mbedtls/esp_config.h"' -DHAVE_CONFIG_H -DESP_PLATFORM
@@ -260,12 +261,14 @@ ESPIDF_BT_O = $(addprefix $(ESPCOMP)/bt/,\
 	bluedroid/bta/dm/bta_dm_act.o \
 	bluedroid/bta/dm/bta_dm_api.o \
 	bluedroid/bta/dm/bta_dm_cfg.o \
+	bluedroid/bta/dm/bta_dm_ci.o \
 	bluedroid/bta/dm/bta_dm_main.o \
 	bluedroid/bta/dm/bta_dm_pm.o \
 	bluedroid/bta/gatt/bta_gatt_common.o \
 	bluedroid/bta/gatt/bta_gattc_act.o \
 	bluedroid/bta/gatt/bta_gattc_api.o \
 	bluedroid/bta/gatt/bta_gattc_cache.o \
+	bluedroid/bta/gatt/bta_gattc_ci.o \
 	bluedroid/bta/gatt/bta_gattc_main.o \
 	bluedroid/bta/gatt/bta_gattc_utils.o \
 	bluedroid/bta/gatt/bta_gatts_act.o \
@@ -274,7 +277,9 @@ ESPIDF_BT_O = $(addprefix $(ESPCOMP)/bt/,\
 	bluedroid/bta/gatt/bta_gatts_utils.o \
 	bluedroid/bta/sys/bta_sys_conn.o \
 	bluedroid/bta/sys/bta_sys_main.o \
+	bluedroid/bta/sys/utl.o \
 	bluedroid/btc/core/btc_alarm.o \
+	bluedroid/btc/core/btc_ble_storage.o \
 	bluedroid/btc/core/btc_config.o \
 	bluedroid/btc/core/btc_dev.o \
 	bluedroid/btc/core/btc_dm.o \
@@ -291,8 +296,10 @@ ESPIDF_BT_O = $(addprefix $(ESPCOMP)/bt/,\
 	bluedroid/btc/profile/std/gatt/btc_gatts.o \
 	bluedroid/btcore/bdaddr.o \
 	bluedroid/btif/bta_dm_co.o \
+	bluedroid/btif/bta_gattc_co.o \
 	bluedroid/btif/bta_gatts_co.o \
 	bluedroid/device/controller.o \
+	bluedroid/device/interop.o \
 	bluedroid/hci/buffer_allocator.o \
 	bluedroid/hci/hci_hal_h4.o \
 	bluedroid/hci/hci_layer.o \
@@ -321,6 +328,7 @@ ESPIDF_BT_O = $(addprefix $(ESPCOMP)/bt/,\
 	bluedroid/stack/btm/btm_ble_cont_energy.o \
 	bluedroid/stack/btm/btm_ble_gap.o \
 	bluedroid/stack/btm/btm_ble_multi_adv.o \
+	bluedroid/stack/btm/btm_ble_privacy.o \
 	bluedroid/stack/btm/btm_dev.o \
 	bluedroid/stack/btm/btm_devctl.o \
 	bluedroid/stack/btm/btm_inq.o \
@@ -346,9 +354,25 @@ ESPIDF_BT_O = $(addprefix $(ESPCOMP)/bt/,\
 	bluedroid/stack/l2cap/l2c_api.o \
 	bluedroid/stack/l2cap/l2c_ble.o \
 	bluedroid/stack/l2cap/l2c_csm.o \
+	bluedroid/stack/l2cap/l2c_fcr.o \
 	bluedroid/stack/l2cap/l2c_link.o \
 	bluedroid/stack/l2cap/l2c_main.o \
 	bluedroid/stack/l2cap/l2c_utils.o \
+	bluedroid/stack/sdp/sdp_api.o \
+	bluedroid/stack/sdp/sdp_db.o \
+	bluedroid/stack/sdp/sdp_utils.o \
+	bluedroid/stack/smp/aes.o \
+	bluedroid/stack/smp/p_256_curvepara.o \
+	bluedroid/stack/smp/p_256_ecc_pp.o \
+	bluedroid/stack/smp/p_256_multprecision.o \
+	bluedroid/stack/smp/smp_act.o \
+	bluedroid/stack/smp/smp_api.o \
+	bluedroid/stack/smp/smp_br_main.o \
+	bluedroid/stack/smp/smp_cmac.o \
+	bluedroid/stack/smp/smp_keys.o \
+	bluedroid/stack/smp/smp_l2c.o \
+	bluedroid/stack/smp/smp_main.o \
+	bluedroid/stack/smp/smp_utils.o \
 	bt.o \
 	)
 ## Only needed for SMP
