@@ -546,7 +546,9 @@ STATIC const mp_rom_map_elem_t mp_module_network_globals_table[] = {
     { MP_OBJ_NEW_QSTR(MP_QSTR___name__), MP_OBJ_NEW_QSTR(MP_QSTR_network) },
     { MP_OBJ_NEW_QSTR(MP_QSTR___init__), (mp_obj_t)&esp_initialize_obj },
     { MP_OBJ_NEW_QSTR(MP_QSTR_WLAN), (mp_obj_t)&get_wlan_obj },
+#if MICROPY_PY_NETWORK_LAN
     { MP_OBJ_NEW_QSTR(MP_QSTR_LAN), (mp_obj_t)&get_lan_obj },
+#endif
     { MP_OBJ_NEW_QSTR(MP_QSTR_phy_mode), (mp_obj_t)&esp_phy_mode_obj },
 
 #if (MICROPY_ESP32_BLUETOOTH)
